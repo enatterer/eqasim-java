@@ -106,7 +106,7 @@ from betweenness_and_closeness import (
     verify_components
 )
 
-def setup_output_directories(output_base_path,base_dir, city_name, seed_number):
+def setup_output_directories(base_dir, city_name, seed_number):
     """
     Create structured output directories for different purposes.
     Each city has its own structure, with subgraphs having additional seed hierarchy.
@@ -116,6 +116,9 @@ def setup_output_directories(output_base_path,base_dir, city_name, seed_number):
         city_name: Name of the city (e.g., 'Augsburg')
         seed_number: Seed number (e.g., 1)
     """
+    # Create output base path
+    output_base_path = base_dir / "data" / "subgraph"
+    
     # Create city-specific seed directory name
     city_seed_dir = f"{city_name}_seed_{seed_number}"
     
