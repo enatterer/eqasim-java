@@ -2,10 +2,8 @@
 This file contains the functions for creating the subgraphs for a given city.
 Steps:
 1. Create the hexagon grid for the city
-2. Create the subgraphs for each road type
-3. Create the scenario networks
-4. Cross check the first created scenario
-5. Plot the check for the first created scenario
+2. Analyze the centrality of the edges (betweenness and closeness)
+3. Create the subgraphs for each road type (primary, secondary, tertiary, residential)
 
 Folder structure for input data:
 data/
@@ -673,10 +671,13 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
         'modified_capacity': edges_in_selected_hexagon['link'].map(
             lambda x: matsim_network.loc[matsim_network['id'] == x, 'capacity'].iloc[0] 
             if x in matsim_network['id'].values else None
-        ),
-        'capacity_reduced': edges_in_selected_hexagon['consolidated_road_type'] == key[0]
+        )
     })
     
+    # Calculate capacity_reduced based on actual capacity changes
+    comparison_df['road_type_match'] = (comparison_df['road_type'] == key[0])
+    comparison_df['is_capacity_reduced'] = (comparison_df['road_type_match']) & (comparison_df['modified_capacity'] < comparison_df['original_capacity'])
+
     # Remove rows where modified_capacity is None (edges that don't exist in the modified network)
     comparison_df = comparison_df.dropna(subset=['modified_capacity'])
     
