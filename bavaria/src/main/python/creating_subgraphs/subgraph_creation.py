@@ -158,10 +158,10 @@ def setup_output_directories(base_dir, city_name, seed_number):
 ### Settings for filepath, working directory and output path #########################################################
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-administrative_boundary_json_path = base_dir / "bavaria" / "data" / "city_boundaries" / "augsburg" / "augsburg.json"
-matsim_network_file_path = base_dir / "bavaria" / "data" / "simulation_input" / "simulations_for_landkreis" / "augsburg" / "augsburg_network.xml.gz"
-csv_filepath = base_dir / "bavaria" / "data" / "simulation_output" / "basecases" / "augsburg" / "augsburg_seed_1" / "output_links.csv.gz"
-output_base_path = base_dir / "bavaria" / "data" / "subgraph"
+administrative_boundary_json_path = base_dir / "data" / "city_boundaries" / "augsburg" / "augsburg.json"
+matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / "augsburg" / "augsburg_network.xml.gz"
+csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / "augsburg" / "augsburg_seed_1" / "output_links.csv.gz"
+output_base_path = base_dir / "data" / "subgraph"
 
 ######## Control Center for Variables #################################################################################
 
