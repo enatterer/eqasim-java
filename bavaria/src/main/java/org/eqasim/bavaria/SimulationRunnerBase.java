@@ -36,8 +36,7 @@ public abstract class SimulationRunnerBase {
     final int randomSeed,
     final int numberOfThreads,
     final int numberOfThreadsQSim,
-    final int memoryAllocation, 
-    final String capfactor) throws Exception {
+    final int memoryAllocation) throws Exception {
 
         String fullConfigPath = Paths.get(workingDirectory, configPath).toString();
 
@@ -71,8 +70,8 @@ public abstract class SimulationRunnerBase {
         for (String argument : arguments) {
             System.out.println(argument);
         }
-        final File logFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + "_capfactor_" + capfactor + ".log"); 
-        final File errorLogFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + "_capfactor_" + capfactor + ".error.log");
+        final File logFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
+        final File errorLogFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
         System.out.println("Log file: " + logFile);
         System.out.println("Error log file: " + errorLogFile);
 
@@ -184,7 +183,7 @@ public abstract class SimulationRunnerBase {
                 } else {
                     String fileName = path.getFileName().toString();
                     if (!fileName.equals("output_links.csv.gz")
-                            && !fileName.equals("eqasim_pt.csv")
+                            && !fileName.equals("output_events.xml.gz")
                             && !fileName.equals("eqasim_trips.csv")) {
                         Files.delete(path);
                         LOGGER.info("Deleted file: " + path);
