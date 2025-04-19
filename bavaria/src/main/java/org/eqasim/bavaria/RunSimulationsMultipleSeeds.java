@@ -70,7 +70,7 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
         LOGGER.info("Output for seed " + currentSeed + " will be written to: " + seedOutputDirectory);
 
         // Check if the output file exists for the current seed
-        boolean seedSimulationRanSuccessfully = checkIfFileExists(seedOutputDirectory, "output_links.csv.gz");
+        boolean seedSimulationRanSuccessfully = checkIfFileExists(seedOutputDirectory, "output_events.xml.gz");
         LOGGER.info("Checking if output exists for seed " + currentSeed + ": " + seedSimulationRanSuccessfully);
 
         if (!seedSimulationRanSuccessfully) {

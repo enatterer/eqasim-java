@@ -6,9 +6,9 @@
 #SBATCH --output=simulation_basecases_output_%j.log
 #SBATCH --error=simulation_basecases_error_%j.log
 
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=24
-#SBATCH --cpus-per-task=2
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=48
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=80GB
 #SBATCH --time=02:30:00
 
@@ -29,18 +29,19 @@ export FONTCONFIG_FILE=$HOME/test_java_font_4u/fonts/fonts.conf
 export FC_FONT_PATH=$HOME/test_java_font_4u/fonts
 
 # First city: kempten
-for seed in {13..48}; do
+for seed in {1..48}; do
     java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds \
-        --city kempten \
+        --city aschaffenburg \
         --seeds $seed \
-        --threads 2 \
-        --memory 2 > kempten_${seed}.log 2>&1 &
+        --threads 1 \
+        --memory 1 > aschaffenburg_${seed}.log 2>&1 &
 
     java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds \
-        --city neuulm \
+        --city schweinfurt \
         --seeds $seed \
-        --threads 2 \
-        --memory 2 > neuulm_${seed}.log 2>&1 &
+        --threads 1 \
+        --memory 1 > schweinfurt_${seed}.log 2>&1 &
+
 done
 
 wait
