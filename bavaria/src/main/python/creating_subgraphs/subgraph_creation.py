@@ -59,6 +59,7 @@ import random
 import sys
 from lxml import etree as ET
 import re
+import json
 
 # Third-party imports
 import networkx as nx
@@ -95,7 +96,8 @@ from hexagon_creation_and_plot import (
     consolidate_road_types,
     check_hexagon_statistics,
     plot_grid_and_edges,
-    convert_and_save_geodataframe
+    convert_and_save_geodataframe,
+    plot_hexagon_grid_with_ids
 )
 from betweenness_and_closeness import (
     edge_closeness_centrality,
@@ -115,7 +117,7 @@ def setup_output_directories(base_dir, city_name, seed_number):
         seed_number: Seed number (e.g., 1)
     """
     # Create output base path
-    output_base_path = base_dir / "data" / "subgraph"
+    output_base_path = base_dir / "data" / "subgraph_new_new"
     
     # Create city-specific seed directory name
     city_seed_dir = f"{city_name}_seed_{seed_number}"
@@ -170,7 +172,7 @@ closeness_centrality_cutoff = 0.2 # Take the highest 80% of the links based on c
 target_size = 20 #total number of subgraphs to be created
 distribution_mean_factor = 5
 distribution_std_factor = 10 # for n denoting the number of hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor and std dev (n/distribution_std_factor)
-seed_number = 73 #This is the seed number for the random number generator
+seed_number = 83 #This is the seed number for the random number generator
 ######## City Names #######################################################################################################
 city_name = 'augsburg'
 ########################################################################################################################
@@ -360,7 +362,7 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
                               closeness_centrality_cutoff=closeness_centrality_cutoff):
     """
     Create network.xml.gz files for each scenario by modifying only the capacity of specific links
-    in the existing MATSim network file.
+    in the existing MATSim network file. Also saves corresponding hexagon IDs for each scenario.
     """
     # Get the networks directory from output_dirs
     networks_base = output_dirs['networks']
@@ -406,6 +408,20 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
             # Create the network file name with seed number
             network_filename = f"network_seed{seed_number}_{label}.xml.gz"
             network_path = folder_path / network_filename
+            
+            # Create the hexagon IDs file name
+            hexagon_filename = f"network_seed{seed_number}_{label}_hexagons.json"
+            hexagon_path = folder_path / hexagon_filename
+            
+            # Save hexagon IDs for this scenario
+            hexagon_data = {
+                "scenario": label,
+                "road_type": road_type,
+                "seed": seed_number,
+                "hexagon_ids": list(subset)
+            }
+            with open(hexagon_path, 'w') as f:
+                json.dump(hexagon_data, f, indent=2)
             
             # Store the path of the first scenario
             if first_scenario_path is None:
@@ -472,19 +488,21 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
             with gzip.open(network_path, 'wt', encoding='utf-8') as f:
                 f.write(xml_str)
             
-            # Verify the file was created
+            # Verify the files were created
             if not network_path.exists():
-                print(f"Warning: Failed to create file {network_path}")
+                print(f"Warning: Failed to create network file {network_path}")
+            elif not hexagon_path.exists():
+                print(f"Warning: Failed to create hexagon file {hexagon_path}")
             else:
-                print(f"Created scenario file: {network_path}")
+                print(f"Created scenario files: {network_path} and {hexagon_path}")
             
             total_scenarios += 1
             
             # Print progress more frequently
             if total_scenarios % 5 == 0:  # Print progress every 5 scenarios
-                print(f"Created {total_scenarios} network files...")
+                print(f"Created {total_scenarios} network files and their corresponding hexagon files...")
     
-    print(f"\nFinished creating {total_scenarios} network files for {city_name} (seed {seed_number})")
+    print(f"\nFinished creating {total_scenarios} network files and hexagon files for {city_name} (seed {seed_number})")
     print(f"Files are organized in folders under: {networks_base}")
     
     return first_scenario_path
@@ -737,6 +755,13 @@ def main():
     gdf_edges_with_hex,hexagon_grid_all = merge_edges_and_hexagon_grid(zones_gdf, hexagon_size ,
                                                                       gdf_edges_with_zones ,
                                                                               projection='EPSG:25832')
+    # Save hexagon grid as GeoJSON
+    hexagon_grid_all.to_file(output_dirs['hexagon_data'] / f'{city_name}_hexagon_grid.geojson')
+    
+    # Create and save plot of hexagon grid with IDs
+    plot_hexagon_grid_with_ids(hexagon_grid_all, 
+                              output_dirs['hexagon_plots'] / f'{city_name}_hexagon_grid_with_ids.png')
+    
     #consolidate the road types
     gdf_edges_with_hex['consolidated_road_type'] = gdf_edges_with_hex['osm:way:highway'].apply(consolidate_road_types)
     #check the hexagon statistics
