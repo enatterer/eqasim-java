@@ -635,21 +635,6 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
     1. Which edges are in the selected hexagons
     2. Which edges match the road type
     3. How capacities have been modified
-    
-    Parameters:
-    -----------
-    check_output_subgraph_path : Path or str
-        Path to the specific network file to check
-    gdf_edges_with_hex : GeoDataFrame
-        Original network data with hexagon assignments
-    road_type_subsets : dict
-        Dictionary mapping road types to their hexagon subsets
-    scenario_labels : dict
-        Dictionary mapping scenario indices to their labels
-    seed_number : int, optional
-        Seed number from city_seed_X directory structure
-    output_dirs : dict, optional
-        Dictionary containing output directory paths. If provided, will save CSVs.
     """
     # Load the network file
     matsim_network, nodes_subgraph, edges_subgraph,network_attrs, link_attrs = matsim_network_input_to_gdf(check_output_subgraph_path)
@@ -685,9 +670,9 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
     comparison_df = pd.DataFrame({
         'edge_id': edges_in_selected_hexagon['link'],
         'road_type': edges_in_selected_hexagon['consolidated_road_type'],
-        'original_capacity': edges_in_selected_hexagon['capacity'],
+        'original_capacity': pd.to_numeric(edges_in_selected_hexagon['capacity'], errors='coerce'),
         'modified_capacity': edges_in_selected_hexagon['link'].map(
-            lambda x: matsim_network.loc[matsim_network['id'] == x, 'capacity'].iloc[0] 
+            lambda x: float(matsim_network.loc[matsim_network['id'] == x, 'capacity'].iloc[0]) 
             if x in matsim_network['id'].values else None
         )
     })
