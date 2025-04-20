@@ -755,12 +755,15 @@ def main():
     gdf_edges_with_hex,hexagon_grid_all = merge_edges_and_hexagon_grid(zones_gdf, hexagon_size ,
                                                                       gdf_edges_with_zones ,
                                                                               projection='EPSG:25832')
-    # Save hexagon grid as GeoJSON
-    hexagon_grid_all.to_file(output_dirs['hexagon_data'] / f'{city_name}_hexagon_grid.geojson')
+    # Prepare hexagon grid for saving
+    hexagon_grid_save = hexagon_grid_all.copy()
+    # Convert list fields to strings
+    for col in hexagon_grid_save.columns:
+        if hexagon_grid_save[col].dtype == object and isinstance(hexagon_grid_save[col].iloc[0], list):
+            hexagon_grid_save[col] = hexagon_grid_save[col].apply(lambda x: str(x) if isinstance(x, list) else x)
     
-    # Create and save plot of hexagon grid with IDs
-    plot_hexagon_grid_with_ids(hexagon_grid_all, 
-                              output_dirs['hexagon_plots'] / f'{city_name}_hexagon_grid_with_ids.png')
+    # Save the processed hexagon grid
+    hexagon_grid_save.to_file(output_dirs['hexagon_data'] / f'{city_name}_hexagon_grid.geojson')
     
     #consolidate the road types
     gdf_edges_with_hex['consolidated_road_type'] = gdf_edges_with_hex['osm:way:highway'].apply(consolidate_road_types)
