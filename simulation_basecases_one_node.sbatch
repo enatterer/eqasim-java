@@ -43,7 +43,7 @@ wait_for_processes() {
 
 # Run simulations for each city and seed
 for seed in {0..48}; do
-    for city in aschaffenburg augsburg bamberg bayreuth erlangen landshut neuulm regensburg rosenheim; do
+    for city in aschaffenburg augsburg bamberg bayreuth; do
         wait_for_processes
         echo "Starting simulation for $city with seed $seed (Process count: $process_count)"
         java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds \

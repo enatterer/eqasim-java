@@ -5,38 +5,45 @@ Steps:
 2. Analyze the centrality of the edges (betweenness and closeness)
 3. Create the subgraphs for each road type (primary, secondary, tertiary, residential)
 
+Usage:
+    python subgraph_creation.py <city_name>
+
+Example:
+    python subgraph_creation.py augsburg
+    python subgraph_creation.py ingolstadt
+
 Folder structure for input data:
 data/
 ├── city_boundaries/
-│   └── augsburg/
-│       ├── augsburg.json
+│   └── <city_name>/
+│       ├── <city_name>.json
 │
 ├── simulation_input/
 │   └── simulations_for_landkreis/
-│       └── augsburg/
-│           ├── augsburg_network.xml.gz
+│       └── <city_name>/
+│           ├── <city_name>_network.xml.gz
 │
 ├── simulation_output/
 │   └── basecases/
-│       └── augsburg/
-│           └── augsburg_seed_1/
+│       └── <city_name>/
+│           └── <city_name>_seed_1/
 │               └── output_links.csv.gz
 
 Folder structure for output data:
 data/
 └── subgraph/
     ├── hexagon/
-    │   └── augsburg/
+    │   └── <city_name>/
     │       ├── plots/
     │       └── data/
     ├── centrality/
-    │   └── augsburg/
+    │   └── <city_name>/
     │       ├── csv/
     │       └── plots/
     └── network_files/
-        └── augsburg/
+        └── <city_name>/
             ├── subgraphs/
-            │   └── augsburg_seed_13/
+            │   └── <city_name>_seed_13/
             │       └── networks/
             │           └── networks_0/
             └── validation/
@@ -115,7 +122,7 @@ def setup_output_directories(base_dir, city_name, seed_number):
         seed_number: Seed number (e.g., 1)
     """
     # Create output base path
-    output_base_path = base_dir / "data" / "subgraph"
+    output_base_path = base_dir / "data" / "subgraphs_new"
     
     # Create city-specific seed directory name
     city_seed_dir = f"{city_name}_seed_{seed_number}"
@@ -156,10 +163,10 @@ def setup_output_directories(base_dir, city_name, seed_number):
 ### Settings for filepath, working directory and output path #########################################################
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-administrative_boundary_json_path = base_dir / "data" / "city_boundaries" / "augsburg" / "augsburg.json"
-matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / "augsburg" / "augsburg_network.xml.gz"
-csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / "augsburg" / "augsburg_seed_1" / "output_links.csv.gz"
-output_base_path = base_dir / "data" / "subgraph"
+administrative_boundary_json_path = base_dir / "data" / "city_boundaries_new" / "ingolstadt" / "ingolstadt.json"
+matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / "ingolstadt" / "ingolstadt_network.xml.gz"
+csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / "ingolstadt" / "ingolstadt_seed_1" / "output_links.csv.gz"
+output_base_path = base_dir / "data" / "subgraphs_new"
 
 ######## Control Center for Variables #################################################################################
 
@@ -167,12 +174,12 @@ hexagon_size = 1000  # Size in meters for EPSG:25832 and in degrees for EPSG:432
 capacity_tuning_factor = 0.5 #This is the factor by which the capacity of the links is reduced
 betweenness_centrality_cutoff = 0.8 # Take the lowest 80% of the links based on betweenness centrality
 closeness_centrality_cutoff = 0.2 # Take the highest 80% of the links based on closeness centrality
-target_size = 20 #total number of subgraphs to be created
-distribution_mean_factor = 5
-distribution_std_factor = 10 # for n denoting the number of hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor and std dev (n/distribution_std_factor)
-seed_number = 73 #This is the seed number for the random number generator
+target_size = 10000 #total number of subgraphs to be created
+distribution_mean_factor = 5 # for n denoting the number of non-empty hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor) and std dev (n/distribution_std_factor)
+distribution_std_factor = 10
+seed_number = 1 #This is the seed number for the random number generator
 ######## City Names #######################################################################################################
-city_name = 'augsburg'
+city_name = 'ingolstadt'
 ########################################################################################################################
 output_dirs = setup_output_directories(base_dir, city_name, seed_number)
 
@@ -181,10 +188,6 @@ output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_distr
 
 # For centrality analysis
 csv_output = output_dirs['centrality_csv'] / 'centrality_measures.csv'
-
-# For networks (with city-specific seed hierarchy)
-subgraph_output = output_dirs['networks'] / f'{city_name}_network_residential_n7_s1.xml.gz'
-
 
 ########################################################################################################################
 def generate_road_type_specific_subsets(gdf_edges_with_hex, city_name, seed_number, target_size, 
@@ -674,7 +677,11 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
         )
     })
     
-    # Calculate capacity_reduced based on actual capacity changes
+    # Convert capacity columns to numeric values
+    comparison_df['modified_capacity'] = pd.to_numeric(comparison_df['modified_capacity'], errors='coerce')
+    comparison_df['original_capacity'] = pd.to_numeric(comparison_df['original_capacity'], errors='coerce')
+
+    # Now perform the comparison
     comparison_df['road_type_match'] = (comparison_df['road_type'] == key[0])
     comparison_df['is_capacity_reduced'] = (comparison_df['road_type_match']) & (comparison_df['modified_capacity'] < comparison_df['original_capacity'])
 
@@ -712,6 +719,30 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
 
 
 def main():
+    # Get city name from command line arguments
+    if len(sys.argv) != 2:
+        print("Usage: python subgraph_creation.py <city_name>")
+        print("Example: python subgraph_creation.py augsburg")
+        sys.exit(1)
+    
+    city_name = sys.argv[1].lower()
+    
+    # Update file paths with city name
+    administrative_boundary_json_path = base_dir / "data" / "city_boundaries_new" / city_name / f"{city_name}.json"
+    matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / city_name / f"{city_name}_network.xml.gz"
+    csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / city_name / f"{city_name}_seed_1" / "output_links.csv.gz"
+    
+    # Verify that required files exist
+    if not administrative_boundary_json_path.exists():
+        print(f"Error: City boundary file not found: {administrative_boundary_json_path}")
+        sys.exit(1)
+    if not matsim_network_file_path.exists():
+        print(f"Error: Network file not found: {matsim_network_file_path}")
+        sys.exit(1)
+    if not csv_filepath.exists():
+        print(f"Error: Output links file not found: {csv_filepath}")
+        sys.exit(1)
+
     #### Hexagon Creation ################################################################################
     matsim_network, nodes, df_edges, network_attrs, link_attrs = matsim_network_input_to_gdf(matsim_network_file_path)
     cleaned_network = clean_duplicates_based_on_modes(csv_filepath)
