@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  * 
  * Remind that when making a change, we need to recompile the project first: mvn clean package -Pstandalone --projects bavaria --also-make -DskipTests=true 
  * 
- * TODO: Consider adding methodology for running all cities in one run. But it could be that we don't need this.
+ * TODO:Consider adding methodology for running all cities in one run. But it could be that we don't need this.
  */
 
 public class RunSimulationScenarios extends SimulationRunnerBase {
