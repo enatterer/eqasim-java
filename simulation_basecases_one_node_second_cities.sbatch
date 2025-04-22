@@ -7,10 +7,10 @@
 #SBATCH --error=simulation_basecases_error_%j.log
 
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=12
+#SBATCH --ntasks-per-node=12
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=80GB
-#SBATCH --time=12:00:00
+#SBATCH --time=48:00:00
 
 # Account and partition
 #SBATCH --account=pn39mu
@@ -30,7 +30,7 @@ export FC_FONT_PATH=$HOME/test_java_font_4u/fonts
 
 # Initialize process counter
 declare -i process_count=0
-max_processes=4  # Number of parallel processes to run
+max_processes=12  # Number of parallel processes to run (12 per node × 1 nodes)
 
 # Function to wait for processes if we've reached the maximum
 wait_for_processes() {
@@ -42,15 +42,15 @@ wait_for_processes() {
 }
 
 # Run simulations for each city and seed
-for seed in {1..48}; do
-    for city in augsburg bamberg bayreuth erlangen; do
+for seed in {0..48}; do
+    for city in erlangen landshut neuulm regensburg rosenheim; do
         wait_for_processes
         echo "Starting simulation for $city with seed $seed (Process count: $process_count)"
         java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds \
             --city $city \
             --seeds $seed \
-            --threads 12 \
-            --memory 20 > ${city}_${seed}.log 2>&1 &
+            --threads 4 \
+            --memory 6 > ${city}_${seed}.log 2>&1 &
         process_count=$((process_count + 1))
         echo "Launched process for $city with seed $seed (Process count: $process_count)"
     done
