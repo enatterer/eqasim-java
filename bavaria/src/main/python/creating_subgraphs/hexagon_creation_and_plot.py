@@ -541,7 +541,6 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
     print(f"Total number of edges: {len(gdf_edges_with_hex)}")
     print('Edges in stadt: ', len(gdf_edges_with_hex[gdf_edges_with_hex['hex_zone_id'].apply(lambda x: 1 in x)]))
     print('Edges not in stadt: ', len(gdf_edges_with_hex[gdf_edges_with_hex['hex_zone_id'].apply(lambda x: 1 not in x)]))
-   
 
     return gdf_edges_with_hex, hexagon_grid_all
 
@@ -556,7 +555,47 @@ def check_hexagon_statistics(gdf_edges_with_hex, hexagon_grid_all):
     print(unique_values)
     print('Number of Hexagons containing edges: ', len (unique_values))
     print('Total number of Hexagons created: ', len(hexagon_grid_all))
-
+    
+def plot_hexagon_grid_with_ids(hexagon_grid_all, output_path):
+    """
+    Create a plot of the hexagon grid with hexagon IDs labeled in the center of each hexagon.
+    
+    Parameters:
+    -----------
+    hexagon_grid_all : GeoDataFrame
+        GeoDataFrame containing the hexagon grid
+    output_path : Path
+        Path where to save the plot
+    """
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(20, 20))
+    
+    # Plot hexagons
+    hexagon_grid_all.plot(ax=ax, 
+                         color='none', 
+                         edgecolor='red',
+                         alpha=0.7,
+                         linewidth=0.6)
+    
+    # Add hexagon IDs as labels
+    for idx, row in hexagon_grid_all.iterrows():
+        # Get centroid of hexagon for label placement
+        centroid = row.geometry.centroid
+        # Add text label
+        ax.text(centroid.x, centroid.y, str(row['grid_id']), 
+                horizontalalignment='center',
+                verticalalignment='center',
+                fontsize=8,
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+    
+    plt.title('Hexagon Grid with ID Labels')
+    plt.axis('equal')
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Hexagon grid plot with IDs saved to: {output_path}")
+    plt.close()
 def plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all, zones_gdf, output_dirs,city_name):
     '''
     This function plots and saves the network with the hexagon grid and zones

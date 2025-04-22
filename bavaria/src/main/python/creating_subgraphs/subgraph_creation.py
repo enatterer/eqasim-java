@@ -5,45 +5,38 @@ Steps:
 2. Analyze the centrality of the edges (betweenness and closeness)
 3. Create the subgraphs for each road type (primary, secondary, tertiary, residential)
 
-Usage:
-    python subgraph_creation.py <city_name>
-
-Example:
-    python subgraph_creation.py augsburg
-    python subgraph_creation.py ingolstadt
-
 Folder structure for input data:
 data/
 ├── city_boundaries/
-│   └── <city_name>/
-│       ├── <city_name>.json
+│   └── augsburg/
+│       ├── augsburg.json
 │
 ├── simulation_input/
 │   └── simulations_for_landkreis/
-│       └── <city_name>/
-│           ├── <city_name>_network.xml.gz
+│       └── augsburg/
+│           ├── augsburg_network.xml.gz
 │
 ├── simulation_output/
 │   └── basecases/
-│       └── <city_name>/
-│           └── <city_name>_seed_1/
+│       └── augsburg/
+│           └── augsburg_seed_1/
 │               └── output_links.csv.gz
 
 Folder structure for output data:
 data/
 └── subgraph/
     ├── hexagon/
-    │   └── <city_name>/
+    │   └── augsburg/
     │       ├── plots/
     │       └── data/
     ├── centrality/
-    │   └── <city_name>/
+    │   └── augsburg/
     │       ├── csv/
     │       └── plots/
     └── network_files/
-        └── <city_name>/
+        └── augsburg/
             ├── subgraphs/
-            │   └── <city_name>_seed_13/
+            │   └── augsburg_seed_13/
             │       └── networks/
             │           └── networks_0/
             └── validation/
@@ -66,6 +59,7 @@ import random
 import sys
 from lxml import etree as ET
 import re
+import json
 
 # Third-party imports
 import networkx as nx
@@ -102,7 +96,8 @@ from hexagon_creation_and_plot import (
     consolidate_road_types,
     check_hexagon_statistics,
     plot_grid_and_edges,
-    convert_and_save_geodataframe
+    convert_and_save_geodataframe,
+    plot_hexagon_grid_with_ids
 )
 from betweenness_and_closeness import (
     edge_closeness_centrality,
@@ -122,7 +117,7 @@ def setup_output_directories(base_dir, city_name, seed_number):
         seed_number: Seed number (e.g., 1)
     """
     # Create output base path
-    output_base_path = base_dir / "data" / "subgraphs_new"
+    output_base_path = base_dir / "data" / "subgraph_new_new"
     
     # Create city-specific seed directory name
     city_seed_dir = f"{city_name}_seed_{seed_number}"
@@ -163,10 +158,10 @@ def setup_output_directories(base_dir, city_name, seed_number):
 ### Settings for filepath, working directory and output path #########################################################
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-administrative_boundary_json_path = base_dir / "data" / "city_boundaries_new" / "ingolstadt" / "ingolstadt.json"
-matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / "ingolstadt" / "ingolstadt_network.xml.gz"
-csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / "ingolstadt" / "ingolstadt_seed_1" / "output_links.csv.gz"
-output_base_path = base_dir / "data" / "subgraphs_new"
+administrative_boundary_json_path = base_dir / "data" / "city_boundaries" / "augsburg" / "augsburg.json"
+matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / "augsburg" / "augsburg_network.xml.gz"
+csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / "augsburg" / "augsburg_seed_1" / "output_links.csv.gz"
+output_base_path = base_dir / "data" / "subgraph"
 
 ######## Control Center for Variables #################################################################################
 
@@ -174,12 +169,12 @@ hexagon_size = 1000  # Size in meters for EPSG:25832 and in degrees for EPSG:432
 capacity_tuning_factor = 0.5 #This is the factor by which the capacity of the links is reduced
 betweenness_centrality_cutoff = 0.8 # Take the lowest 80% of the links based on betweenness centrality
 closeness_centrality_cutoff = 0.2 # Take the highest 80% of the links based on closeness centrality
-target_size = 10000 #total number of subgraphs to be created
-distribution_mean_factor = 5 # for n denoting the number of non-empty hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor) and std dev (n/distribution_std_factor)
-distribution_std_factor = 10
-seed_number = 1 #This is the seed number for the random number generator
+target_size = 20 #total number of subgraphs to be created
+distribution_mean_factor = 5
+distribution_std_factor = 10 # for n denoting the number of hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor and std dev (n/distribution_std_factor)
+seed_number = 83 #This is the seed number for the random number generator
 ######## City Names #######################################################################################################
-city_name = 'ingolstadt'
+city_name = 'augsburg'
 ########################################################################################################################
 output_dirs = setup_output_directories(base_dir, city_name, seed_number)
 
@@ -188,6 +183,10 @@ output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_distr
 
 # For centrality analysis
 csv_output = output_dirs['centrality_csv'] / 'centrality_measures.csv'
+
+# For networks (with city-specific seed hierarchy)
+subgraph_output = output_dirs['networks'] / f'{city_name}_network_residential_n7_s1.xml.gz'
+
 
 ########################################################################################################################
 def generate_road_type_specific_subsets(gdf_edges_with_hex, city_name, seed_number, target_size, 
@@ -363,7 +362,7 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
                               closeness_centrality_cutoff=closeness_centrality_cutoff):
     """
     Create network.xml.gz files for each scenario by modifying only the capacity of specific links
-    in the existing MATSim network file.
+    in the existing MATSim network file. Also saves corresponding hexagon IDs for each scenario.
     """
     # Get the networks directory from output_dirs
     networks_base = output_dirs['networks']
@@ -409,6 +408,20 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
             # Create the network file name with seed number
             network_filename = f"network_seed{seed_number}_{label}.xml.gz"
             network_path = folder_path / network_filename
+            
+            # Create the hexagon IDs file name
+            hexagon_filename = f"network_seed{seed_number}_{label}_hexagons.json"
+            hexagon_path = folder_path / hexagon_filename
+            
+            # Save hexagon IDs for this scenario
+            hexagon_data = {
+                "scenario": label,
+                "road_type": road_type,
+                "seed": seed_number,
+                "hexagon_ids": list(subset)
+            }
+            with open(hexagon_path, 'w') as f:
+                json.dump(hexagon_data, f, indent=2)
             
             # Store the path of the first scenario
             if first_scenario_path is None:
@@ -475,19 +488,21 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
             with gzip.open(network_path, 'wt', encoding='utf-8') as f:
                 f.write(xml_str)
             
-            # Verify the file was created
+            # Verify the files were created
             if not network_path.exists():
-                print(f"Warning: Failed to create file {network_path}")
+                print(f"Warning: Failed to create network file {network_path}")
+            elif not hexagon_path.exists():
+                print(f"Warning: Failed to create hexagon file {hexagon_path}")
             else:
-                print(f"Created scenario file: {network_path}")
+                print(f"Created scenario files: {network_path} and {hexagon_path}")
             
             total_scenarios += 1
             
             # Print progress more frequently
             if total_scenarios % 5 == 0:  # Print progress every 5 scenarios
-                print(f"Created {total_scenarios} network files...")
+                print(f"Created {total_scenarios} network files and their corresponding hexagon files...")
     
-    print(f"\nFinished creating {total_scenarios} network files for {city_name} (seed {seed_number})")
+    print(f"\nFinished creating {total_scenarios} network files and hexagon files for {city_name} (seed {seed_number})")
     print(f"Files are organized in folders under: {networks_base}")
     
     return first_scenario_path
@@ -620,21 +635,6 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
     1. Which edges are in the selected hexagons
     2. Which edges match the road type
     3. How capacities have been modified
-    
-    Parameters:
-    -----------
-    check_output_subgraph_path : Path or str
-        Path to the specific network file to check
-    gdf_edges_with_hex : GeoDataFrame
-        Original network data with hexagon assignments
-    road_type_subsets : dict
-        Dictionary mapping road types to their hexagon subsets
-    scenario_labels : dict
-        Dictionary mapping scenario indices to their labels
-    seed_number : int, optional
-        Seed number from city_seed_X directory structure
-    output_dirs : dict, optional
-        Dictionary containing output directory paths. If provided, will save CSVs.
     """
     # Load the network file
     matsim_network, nodes_subgraph, edges_subgraph,network_attrs, link_attrs = matsim_network_input_to_gdf(check_output_subgraph_path)
@@ -670,18 +670,14 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
     comparison_df = pd.DataFrame({
         'edge_id': edges_in_selected_hexagon['link'],
         'road_type': edges_in_selected_hexagon['consolidated_road_type'],
-        'original_capacity': edges_in_selected_hexagon['capacity'],
+        'original_capacity': pd.to_numeric(edges_in_selected_hexagon['capacity'], errors='coerce'),
         'modified_capacity': edges_in_selected_hexagon['link'].map(
-            lambda x: matsim_network.loc[matsim_network['id'] == x, 'capacity'].iloc[0] 
+            lambda x: float(matsim_network.loc[matsim_network['id'] == x, 'capacity'].iloc[0]) 
             if x in matsim_network['id'].values else None
         )
     })
     
-    # Convert capacity columns to numeric values
-    comparison_df['modified_capacity'] = pd.to_numeric(comparison_df['modified_capacity'], errors='coerce')
-    comparison_df['original_capacity'] = pd.to_numeric(comparison_df['original_capacity'], errors='coerce')
-
-    # Now perform the comparison
+    # Calculate capacity_reduced based on actual capacity changes
     comparison_df['road_type_match'] = (comparison_df['road_type'] == key[0])
     comparison_df['is_capacity_reduced'] = (comparison_df['road_type_match']) & (comparison_df['modified_capacity'] < comparison_df['original_capacity'])
 
@@ -719,30 +715,6 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
 
 
 def main():
-    # Get city name from command line arguments
-    if len(sys.argv) != 2:
-        print("Usage: python subgraph_creation.py <city_name>")
-        print("Example: python subgraph_creation.py augsburg")
-        sys.exit(1)
-    
-    city_name = sys.argv[1].lower()
-    
-    # Update file paths with city name
-    administrative_boundary_json_path = base_dir / "data" / "city_boundaries_new" / city_name / f"{city_name}.json"
-    matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / city_name / f"{city_name}_network.xml.gz"
-    csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / city_name / f"{city_name}_seed_1" / "output_links.csv.gz"
-    
-    # Verify that required files exist
-    if not administrative_boundary_json_path.exists():
-        print(f"Error: City boundary file not found: {administrative_boundary_json_path}")
-        sys.exit(1)
-    if not matsim_network_file_path.exists():
-        print(f"Error: Network file not found: {matsim_network_file_path}")
-        sys.exit(1)
-    if not csv_filepath.exists():
-        print(f"Error: Output links file not found: {csv_filepath}")
-        sys.exit(1)
-
     #### Hexagon Creation ################################################################################
     matsim_network, nodes, df_edges, network_attrs, link_attrs = matsim_network_input_to_gdf(matsim_network_file_path)
     cleaned_network = clean_duplicates_based_on_modes(csv_filepath)
@@ -768,6 +740,16 @@ def main():
     gdf_edges_with_hex,hexagon_grid_all = merge_edges_and_hexagon_grid(zones_gdf, hexagon_size ,
                                                                       gdf_edges_with_zones ,
                                                                               projection='EPSG:25832')
+    # Prepare hexagon grid for saving
+    hexagon_grid_save = hexagon_grid_all.copy()
+    # Convert list fields to strings
+    for col in hexagon_grid_save.columns:
+        if hexagon_grid_save[col].dtype == object and isinstance(hexagon_grid_save[col].iloc[0], list):
+            hexagon_grid_save[col] = hexagon_grid_save[col].apply(lambda x: str(x) if isinstance(x, list) else x)
+    
+    # Save the processed hexagon grid
+    hexagon_grid_save.to_file(output_dirs['hexagon_data'] / f'{city_name}_hexagon_grid.geojson')
+    
     #consolidate the road types
     gdf_edges_with_hex['consolidated_road_type'] = gdf_edges_with_hex['osm:way:highway'].apply(consolidate_road_types)
     #check the hexagon statistics
