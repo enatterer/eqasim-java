@@ -21,8 +21,27 @@ import java.util.stream.Collectors;
  */
 public abstract class SimulationRunnerBase {
     protected static final Logger LOGGER = Logger.getLogger(SimulationRunnerBase.class.getName());
+
+     /**
+     * Runs the MATSim simulation with the given configuration path and output directory. comment this is for simulations with always the same seed
+     *
+     * @param configPath      The path to the configuration file.
+     * @param networkFile     The network file to use for the simulation.
+     * @param outputDirectory The directory where output files will be stored.
+     * @param workingDirectory The working directory.
+     * @param args            Command line arguments.
+     * @throws Exception if an error occurs during the simulation setup or execution.
+     */
+    protected static void runSimulation(final String configPath, final String networkFile, final String outputDirectory, 
+    final String workingDirectory, final String[] args, 
+    final int numberOfThreads,
+    final int numberOfThreadsQSim,
+    final int memoryAllocation) throws Exception {
+        runSimulation(configPath, networkFile, outputDirectory, workingDirectory, args,1, numberOfThreads, numberOfThreadsQSim, memoryAllocation);
+    }
+
    /**
-     * Runs the MATSim simulation with the given configuration path and output directory.
+     * Runs the MATSim simulation with the given configuration path and output directory. this is for simulations with possibly different seeds such as in the base case
      *
      * @param configPath      The path to the configuration file.
      * @param networkFile     The network file to use for the simulation.
@@ -70,14 +89,22 @@ public abstract class SimulationRunnerBase {
         for (String argument : arguments) {
             System.out.println(argument);
         }
-        // final File logFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
-        // final File errorLogFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
-        // System.out.println("Log file: " + logFile);
-        // System.out.println("Error log file: " + errorLogFile);
+        boolean isForBaseCase = false;
+        File logFile = null	;
+        File errorLogFile = null;
+        if (isForBaseCase) {
+            logFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
+            errorLogFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
+        } else {
+            logFile = new File(networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
+            errorLogFile = new File(networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
+        }
+        System.out.println("Log file: " + logFile);
+        System.out.println("Error log file: " + errorLogFile);
 
         Process process = new ProcessBuilder(arguments)
-                // .redirectOutput(logFile)
-                // .redirectError(errorLogFile)
+                .redirectOutput(logFile)
+                .redirectError(errorLogFile)
                 .start();
         System.out.println("Started process: " + outputDirectory);
 

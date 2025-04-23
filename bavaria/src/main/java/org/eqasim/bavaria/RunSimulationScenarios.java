@@ -21,11 +21,9 @@ import java.util.stream.Collectors;
  * To call this class, use the following command:
  * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg > output.log 2>&1 &
  * 
- * If you want to run multiple seeds, you can do so by adding the --seeds parameter, i.e.:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg --seeds 3 > output.log 2>&1 &
+ * ... explain the parameters
  * 
- * You can also specify the number of threads and memory allocation:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg --seeds 3 --threads 12 --memory 60 --capfactor 0.5 > output.log 2>&1 &
+ * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationScenarios --city augsburg --road_type primary --scenario 2 --threads 12 --memory 60 > output_augsburg_primary_s2.log 2>&1 &
  * Note that for the run on the SuperMUC NG login node, for testing purposes, we used 12 threads and 60GB of memory.
  * For the actual runs in the batch script, we used: ...
  * 
@@ -37,6 +35,47 @@ import java.util.stream.Collectors;
 public class RunSimulationScenarios extends SimulationRunnerBase {
     private static final Logger LOGGER = Logger.getLogger(RunSimulationScenarios.class.getName());
 
+    protected static Map<String, List<String>> getNetworkFiles(String cityName) {
+        // Construct the path to the networks directory for the given city
+        String basePath = "bavaria/data/subgraph_new_new/network_files/" + cityName + "/" + cityName + "_seed_83/networks";
+        File networksDir = new File(basePath);
+        Map<String, List<String>> networkFilesMap = new HashMap<>();
+
+        if (!networksDir.exists() || !networksDir.isDirectory()) {
+            LOGGER.severe("Networks directory not found: " + basePath);
+            return networkFilesMap;
+        }
+
+        // List all network_X directories
+        File[] networkDirs = networksDir.listFiles(file -> file.isDirectory() && file.getName().startsWith("network_"));
+        
+        if (networkDirs == null) {
+            LOGGER.severe("No network directories found in: " + basePath);
+            return networkFilesMap;
+        }
+
+        // Process each network directory
+        for (File networkDir : networkDirs) {
+            List<String> xmlFiles = new ArrayList<>();
+            File[] files = networkDir.listFiles((dir, name) -> name.endsWith(".xml.gz"));
+            
+            if (files != null) {
+                for (File file : files) {
+                    xmlFiles.add(file.getName());
+                }
+                Collections.sort(xmlFiles); // Sort files for consistent ordering
+            }
+            
+            if (!xmlFiles.isEmpty()) {
+                networkFilesMap.put(networkDir.getName(), xmlFiles);
+                LOGGER.info("Found " + xmlFiles.size() + " network files in " + networkDir.getName());
+            }
+        }
+
+        return networkFilesMap;
+    }
+ 
+
     static public void main(String[] args) throws Exception {
         Config config;
         try {
@@ -45,7 +84,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
             LOGGER.severe(e.getMessage());
             printUsage();
             System.exit(1);
-            return; // Never reached, but needed for compiler
+            return;
         }
 
         LOGGER.info("Running simulation with configuration: " + config);
@@ -58,20 +97,54 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
         LOGGER.info("Configuration file: " + configPath);
         LOGGER.info("Working directory: " + workingDirectory);
 
+        // Get all network files for this city
+        Map<String, List<String>> networkFilesMap = getNetworkFiles(config.city);
+        
+        if (networkFilesMap.isEmpty()) {
+            throw new IllegalStateException("No network files found for city: " + config.city);
+        }
+
         // Create a fixed thread pool with specified number of threads
         ExecutorService executor = Executors.newFixedThreadPool(config.threads);
         LOGGER.info("Created thread pool with " + config.threads + " threads");
 
-        final String networkFile = "network_seed83_" + config.city + "_primary_n3_s1.xml.gz";
-        LOGGER.info("Using network file: " + networkFile);
+        // Find the appropriate network file
+        String networkFile = null;
+        String networkDir = null;
+        
+        // Search through all network directories for the matching file
+        for (Map.Entry<String, List<String>> entry : networkFilesMap.entrySet()) {
+            for (String file : entry.getValue()) {
+                if (file.contains(config.road_type) && file.contains("_s" + config.scenario)) {
+                    networkFile = file;
+                    networkDir = entry.getKey();
+                    break;
+                }
+            }
+            if (networkFile != null) break;
+        }
 
-        final int currentSeed = config.numSeeds;
-        final String seedOutputDirectory = "bavaria/data/simulation_output/scenarios/" + config.city + "/" + config.city + "_seed_" + currentSeed + "_capfactor_" + config.capfactor + "/";
-        LOGGER.info("Output for seed " + currentSeed + " will be written to: " + seedOutputDirectory);
+        if (networkFile == null) {
+            throw new IllegalStateException(
+                "No matching network file found for road_type=" + config.road_type + 
+                " and scenario=" + config.scenario + " in city " + config.city
+            );
+        }
+
+        // Construct the full path to the network file
+        String fullNetworkPath = "bavaria/data/subgraph_new_new/network_files/" + config.city + "/" + 
+                                config.city + "_seed_83/networks/" + networkDir + "/" + networkFile;
+        
+        LOGGER.info("Using network file: " + fullNetworkPath);
+
+        final String finalNetworkFile = fullNetworkPath;
+        final String seedOutputDirectory = "bavaria/data/simulation_output/scenarios/" + config.city + "/" + 
+                                         config.city + "_seed_83/";
+        LOGGER.info("Output will be written to: " + seedOutputDirectory);
 
         // Check if the output file exists for the current seed
-        boolean seedSimulationRanSuccessfully = checkIfFileExists(seedOutputDirectory, "output_links.csv.gz");
-        LOGGER.info("Checking if output exists for seed " + currentSeed + ": " + seedSimulationRanSuccessfully);
+        boolean seedSimulationRanSuccessfully = checkIfFileExists(seedOutputDirectory, "output_events.xml.gz");
+        LOGGER.info("Checking if output exists: " + seedSimulationRanSuccessfully);
 
         if (!seedSimulationRanSuccessfully) {
             try {
@@ -85,18 +158,18 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
 
                 // Submit task for the current seed
                 executor.submit(() -> {
-                    LOGGER.info("Starting simulation task for: " + networkFile + " with seed " + currentSeed);
+                    LOGGER.info("Starting simulation task for: " + finalNetworkFile);
                     try {
-                        runSimulation(configPath, networkFile, seedOutputDirectory, workingDirectory, args, currentSeed, 
-                            config.threads, config.threads, config.memory, config.capfactor);
-                        LOGGER.info("Completed simulation for: " + networkFile + " with seed " + currentSeed);
+                        runSimulation(configPath, finalNetworkFile, seedOutputDirectory, workingDirectory, args,
+                            config.threads, config.threads, config.memory);
+                        LOGGER.info("Completed simulation for: " + finalNetworkFile);
                         // deleteUnwantedFiles(seedOutputDirectory);
-                        // LOGGER.info("Deleted unwanted files for: " + networkFile + " with seed " + currentSeed);
+                        // LOGGER.info("Deleted unwanted files for: " + finalNetworkFile + " with seed " + currentSeed);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + networkFile + " with seed " + currentSeed, e);
+                        LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + finalNetworkFile, e);
                     } catch (Exception e) {
-                        LOGGER.log(Level.SEVERE, "Error in simulation for: " + networkFile + " with seed " + currentSeed, e);
+                        LOGGER.log(Level.SEVERE, "Error in simulation for: " + finalNetworkFile, e);
                     }
                 });
             } catch (IOException e) {
@@ -104,7 +177,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                 throw e;
             }
         } else {
-            LOGGER.info("Skipping simulation for seed " + currentSeed + " - output already exists in: " + seedOutputDirectory);
+            LOGGER.info("Skipping simulation - output already exists in: " + seedOutputDirectory);
         }
 
         // Shutdown the executor
@@ -129,8 +202,8 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
      */
     private static void printUsage() {
         LOGGER.severe("Usage: java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationScenarios " +
-                     "--city <city_name> [--seeds <seed_number>] [--threads <number_of_threads>] " +
-                     "[--memory <memory_in_GB>] [--capfactor <capfactor_value>]");
+                     "--city <city_name> [--road_type <road_type>] [--scenario <scenario_number>] " +
+                     "[--threads <number_of_threads>] [--memory <memory_in_GB>]");
     }
 
     /**
@@ -140,7 +213,11 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
         private static final Set<String> VALID_CITIES = new HashSet<>(Arrays.asList(
             "aschaffenburg", "augsburg", "bamberg", "bayreuth", 
             "erlangen", "landshut", "neuulm", "regensburg", "rosenheim",
-            "fuerth"  // Added from simulation_basecases_multiple_nodes.sbatch
+            "fuerth"
+        ));
+
+        private static final Set<String> VALID_ROAD_TYPES = new HashSet<>(Arrays.asList(
+            "primary", "secondary", "tertiary", "residential"
         ));
 
         String city = null;
@@ -179,15 +256,12 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                     throw new IllegalArgumentException("Invalid city name. Please provide a valid city name.");
                 }
             } else if (args[i].equals("--road_type") && i + 1 < args.length) {
-                try {
-                    config.road_type = args[i + 1];
-                    if (config.road_type != "primary" && config.road_type != "secondary" && config.road_type != "tertiary" && config.road_type != "residential") {
-                        throw new NumberFormatException("Road type must be primary, secondary, tertiary, or residential");
-                    }
-                    i++; // Skip the next argument
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid road type. Please provide a positive integer.");
+                config.road_type = args[i + 1].toLowerCase();
+                if (!Config.VALID_ROAD_TYPES.contains(config.road_type)) {
+                    throw new IllegalArgumentException("Invalid road type: " + config.road_type + 
+                        ". Valid types are: " + String.join(", ", Config.VALID_ROAD_TYPES));
                 }
+                i++; // Skip the next argument
             }  else if (args[i].equals("--scenario") && i + 1 < args.length) {
                 try {
                     config.scenario = Integer.parseInt(args[i + 1]);
@@ -220,10 +294,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid memory allocation. Please provide a positive integer.");
                 }
-            } else if (args[i].equals("--capfactor") && i + 1 < args.length) {
-                config.capfactor = args[i + 1];
-                i++; // Skip the next argument
-            }
+            } 
         }
 
         // Validate required parameters
