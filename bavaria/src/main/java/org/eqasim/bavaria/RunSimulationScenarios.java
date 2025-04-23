@@ -137,16 +137,23 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
      * Configuration class to hold all simulation parameters.
      */
     private static class Config {
+        private static final Set<String> VALID_CITIES = new HashSet<>(Arrays.asList(
+            "aschaffenburg", "augsburg", "bamberg", "bayreuth", 
+            "erlangen", "landshut", "neuulm", "regensburg", "rosenheim",
+            "fuerth"  // Added from simulation_basecases_multiple_nodes.sbatch
+        ));
+
         String city = null;
-        int numSeeds = 1;  // Default to 1 seed
+        String road_type = null;
+        int scenario = 1;
         int threads = 12;   // Default to 12 threads
         int memory = 120;   // Default to 120GB
-        String capfactor = "0.5";
+
 
         @Override
         public String toString() {
-            return String.format("Config{city='%s', numSeeds=%d, threads=%d, memory=%dGB, capfactor=%s}", 
-                city, numSeeds, threads, memory, capfactor);
+            return String.format("Config{city='%s', road_type=%s, scenario=%d, threads=%d, memory=%dGB}", 
+                city, road_type, scenario, threads, memory);
         }
     }
 
@@ -161,19 +168,39 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
     
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--city") && i + 1 < args.length) {
-                config.city = args[i + 1];
-                i++; // Skip the next argument
-            } else if (args[i].equals("--seeds") && i + 1 < args.length) {
-                try {
-                    config.numSeeds = Integer.parseInt(args[i + 1]);
-                    if (config.numSeeds < 1) {
-                        throw new NumberFormatException("Number of seeds must be positive");
+                try {   
+                    config.city = args[i + 1].toLowerCase(); // Convert to lowercase for case-insensitive comparison
+                    if (!Config.VALID_CITIES.contains(config.city)) {
+                        throw new IllegalArgumentException("Invalid city name: " + config.city + ". Valid cities are: " + 
+                            String.join(", ", Config.VALID_CITIES));
                     }
                     i++; // Skip the next argument
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid number of seeds. Please provide a positive integer.");
+                    throw new IllegalArgumentException("Invalid city name. Please provide a valid city name.");
                 }
-            } else if (args[i].equals("--threads") && i + 1 < args.length) {
+            } else if (args[i].equals("--road_type") && i + 1 < args.length) {
+                try {
+                    config.road_type = args[i + 1];
+                    if (config.road_type != "primary" && config.road_type != "secondary" && config.road_type != "tertiary" && config.road_type != "residential") {
+                        throw new NumberFormatException("Road type must be primary, secondary, tertiary, or residential");
+                    }
+                    i++; // Skip the next argument
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid road type. Please provide a positive integer.");
+                }
+            }  else if (args[i].equals("--scenario") && i + 1 < args.length) {
+                try {
+                    config.scenario = Integer.parseInt(args[i + 1]);
+                    if (config.scenario < 1 || config.scenario > 2500) {
+                        throw new NumberFormatException("Scenario must be between 1 and 2500");
+                    }
+                    i++; // Skip the next argument
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid scenario. Please provide a positive integer between 1 and 2500.");
+                }
+            }
+            
+            else if (args[i].equals("--threads") && i + 1 < args.length) {
                 try {
                     config.threads = Integer.parseInt(args[i + 1]);
                     if (config.threads < 1) {
