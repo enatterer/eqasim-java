@@ -119,7 +119,7 @@ hexagon_size = 1000  # Size in meters for EPSG:25832 and in degrees for EPSG:432
 capacity_tuning_factor = 0.5 #This is the factor by which the capacity of the links is reduced
 betweenness_centrality_cutoff = 0.8 # Take the lowest 80% of the links based on betweenness centrality
 closeness_centrality_cutoff = 0.2 # Take the highest 80% of the links based on closeness centrality
-target_size = 20 #total number of subgraphs to be created
+target_size = 1000 #total number of subgraphs to be created
 distribution_mean_factor = 5
 distribution_std_factor = 10 # for n denoting the number of hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor and std dev (n/distribution_std_factor)
 seed_number = 1 #This is the seed number for the random number generator
@@ -144,7 +144,7 @@ def setup_output_directories(base_dir, city_name, seed_number):
         seed_number: Seed number (e.g., 1)
     """
     # Create output base path
-    output_base_path = base_dir / "data" / "subgraph_new_new"
+    output_base_path = base_dir / "data" / "subgraph"
     
     # Create city-specific seed directory name
     city_seed_dir = f"{city_name}_seed_{seed_number}"
@@ -710,18 +710,9 @@ def main():
     
     output_dirs = setup_output_directories(base_dir, city_name, seed_number)
 
-    # For hexagon plots
-    output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_districts.png'
-
-    # For centrality analysis
-    csv_output = output_dirs['centrality_csv'] / 'centrality_measures.csv'
-
-    # For networks (with city-specific seed hierarchy)
-    # subgraph_output = output_dirs['networks'] / f'{city_name}_network_residential_n7_s1.xml.gz'
-
     #### Hexagon Creation ################################################################################
     # Update file paths with the city name
-    administrative_boundary_json_path = base_dir / "data" / "city_boundaries_new" / city_name / f"{city_name}.json"
+    administrative_boundary_json_path = base_dir / "data" / "city_boundaries" / city_name / f"{city_name}.json"
     matsim_network_file_path = base_dir / "data" / "simulation_input" / "simulations_for_landkreis" / city_name / f"{city_name}_network.xml.gz"
     csv_filepath = base_dir / "data" / "simulation_output" / "basecases" / city_name / f"{city_name}_seed_1" / "output_links.csv.gz"
 
@@ -732,15 +723,12 @@ def main():
         raise FileNotFoundError(f"MATSim network file not found: {matsim_network_file_path}")
     if not csv_filepath.exists():
         raise FileNotFoundError(f"CSV output file not found: {csv_filepath}")
-
-    # Set up output directories
-    output_dirs = setup_output_directories(base_dir, city_name, seed_number)
     
     # For hexagon plots
-    output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_districts.png'
+    # output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_districts.png'
     
     # For centrality analysis
-    csv_output = output_dirs['centrality_csv'] / 'centrality_measures.csv'
+    # csv_output = output_dirs['centrality_csv'] / 'centrality_measures.csv'
 
     matsim_network, nodes, df_edges, network_attrs, link_attrs = matsim_network_input_to_gdf(matsim_network_file_path)
     cleaned_network = clean_duplicates_based_on_modes(csv_filepath)
