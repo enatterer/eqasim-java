@@ -169,7 +169,7 @@ hexagon_size = 1000  # Size in meters for EPSG:25832 and in degrees for EPSG:432
 capacity_tuning_factor = 0.5 #This is the factor by which the capacity of the links is reduced
 betweenness_centrality_cutoff = 0.8 # Take the lowest 80% of the links based on betweenness centrality
 closeness_centrality_cutoff = 0.2 # Take the highest 80% of the links based on closeness centrality
-target_size = 20 #total number of subgraphs to be created
+target_size = 12 #total number of subgraphs to be created
 distribution_mean_factor = 5
 distribution_std_factor = 10 # for n denoting the number of hexagons, we create subgraphs whose length follows a normal distribution with mean (n/distribution_mean_factor and std dev (n/distribution_std_factor)
 seed_number = 83 #This is the seed number for the random number generator
@@ -383,6 +383,9 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
     
     parser = ET.XMLParser(remove_blank_text=True)
     
+    # Dictionary to store scenario edges for each road type and subset
+    road_type_scenario_edges = {}
+    
     # Process each road type and its scenarios
     for road_type, subsets in road_type_subsets.items():
         print(f"\nProcessing road type: {road_type}")
@@ -432,7 +435,15 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
                 lambda x: any(h in subset for h in x) if isinstance(x, list) else False
             )
             
-            scenario_edges = road_type_edges[scenario_mask] #all the edges in the subset that meet the conditions
+            scenario_edges = road_type_edges[scenario_mask].copy() #all the edges in the subset that meet the conditions
+            
+            # Store these edges with their scenario information
+            scenario_edges['scenario_hexagons'] = str(list(subset))
+            
+            # Add to the dictionary, using road type and subset tuple as key
+            key = (road_type, tuple(subset))
+            if key not in road_type_scenario_edges:
+                road_type_scenario_edges[key] = scenario_edges
             
             all_road_type_edges_in_scenario_hexagons = gdf_filtered[    
                 (gdf_filtered['hexagon'].apply(
@@ -488,13 +499,26 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
             with gzip.open(network_path, 'wt', encoding='utf-8') as f:
                 f.write(xml_str)
             
+            # Save the scenario edges alongside the network file
+            scenario_edges_filename = f"network_seed{seed_number}_{label}_reduced_capacity_edges.geojson"
+            scenario_edges_path = folder_path / scenario_edges_filename
+            
+            # Convert list fields to strings before saving
+            scenario_edges_to_save = scenario_edges.copy()
+            for column in scenario_edges_to_save.columns:
+                if isinstance(scenario_edges_to_save[column].iloc[0], list):
+                    scenario_edges_to_save[column] = scenario_edges_to_save[column].apply(lambda x: str(x) if isinstance(x, list) else x)
+            
+            # Save the scenario edges
+            scenario_edges_to_save.to_file(scenario_edges_path, driver='GeoJSON')
+            
             # Verify the files were created
             if not network_path.exists():
                 print(f"Warning: Failed to create network file {network_path}")
             elif not hexagon_path.exists():
                 print(f"Warning: Failed to create hexagon file {hexagon_path}")
             else:
-                print(f"Created scenario files: {network_path} and {hexagon_path}")
+                print(f"Created scenario files: {network_path}, {hexagon_path}, and {scenario_edges_path}")
             
             total_scenarios += 1
             
