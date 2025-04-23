@@ -62,7 +62,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
         ExecutorService executor = Executors.newFixedThreadPool(config.threads);
         LOGGER.info("Created thread pool with " + config.threads + " threads");
 
-        final String networkFile = "network_seed83_" + config.city + "_primary_n11_s2.xml.gz";
+        final String networkFile = "network_seed83_" + config.city + "_primary_n3_s1.xml.gz";
         LOGGER.info("Using network file: " + networkFile);
 
         final int currentSeed = config.numSeeds;
@@ -134,7 +134,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
     }
 
     /**
-     * Configuration class to hold all simulation parameters
+     * Configuration class to hold all simulation parameters.
      */
     private static class Config {
         String city = null;
