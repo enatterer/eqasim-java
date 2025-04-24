@@ -137,6 +137,12 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
      * Configuration class to hold all simulation parameters
      */
     private static class Config {
+        private static final Set<String> VALID_CITIES = new HashSet<>(Arrays.asList(
+            "aschaffenburg", "augsburg", "bamberg", "bayreuth", 
+            "erlangen", "landshut", "muenchen", "nuernberg", "regensburg", "rosenheim",
+            "fuerth", "wuerzburg"
+        ));
+
         String city = null;
         int numSeeds = 1;  // Default to 1 seed
         int threads = 12;   // Default to 12 threads
