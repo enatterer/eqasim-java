@@ -149,7 +149,7 @@ public abstract class SimulationRunnerBase {
         return exists;
     }
 
-    protected static Map<String, List<String>> getNetworkFiles(String directoryPath) {
+    protected static Map<String, List<String>> getNetworkFiles(String city, String directoryPath) {
         File mainDirectory = new File(directoryPath);
         File[] subDirs = mainDirectory.listFiles(File::isDirectory);
 

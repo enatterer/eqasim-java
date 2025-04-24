@@ -128,8 +128,6 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                     Files.createDirectories(Paths.get(seedOutputDirectory));
                     LOGGER.info("Created output directory: " + seedOutputDirectory);
                 }
-
-                // Submit task for the current seed
                 executor.submit(() -> {
                     LOGGER.info("Starting simulation task for: " + finalNetworkFile);
                     try {
