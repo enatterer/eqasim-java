@@ -21,11 +21,12 @@ import java.util.stream.Collectors;
  * To call this class, use the following command:
  * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg > output.log 2>&1 &
  * 
- * ... explain the parameters
+ * In order to run the simulation for a specific scenario, use the following command: 
  * 
  * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationScenarios --city augsburg --road_type primary --scenario 2 --threads 12 --memory 60 > output_augsburg_primary_s2.log 2>&1 &
+ * This is for example for the second scenario of the primary road type in Augsburg.
+ * 
  * Note that for the run on the SuperMUC NG login node, for testing purposes, we used 12 threads and 60GB of memory.
- * For the actual runs in the batch script, we used: ...
  * 
  * Remind that when making a change, we need to recompile the project first: mvn clean package -Pstandalone --projects bavaria --also-make -DskipTests=true 
  * 
@@ -33,48 +34,7 @@ import java.util.stream.Collectors;
  */
 
 public class RunSimulationScenarios extends SimulationRunnerBase {
-    private static final Logger LOGGER = Logger.getLogger(RunSimulationScenarios.class.getName());
-
-    protected static Map<String, List<String>> getNetworkFiles(String cityName) {
-        // Construct the path to the networks directory for the given city
-        String basePath = "bavaria/data/subgraph_new_new/network_files/" + cityName + "/" + cityName + "_seed_83/networks";
-        File networksDir = new File(basePath);
-        Map<String, List<String>> networkFilesMap = new HashMap<>();
-
-        if (!networksDir.exists() || !networksDir.isDirectory()) {
-            LOGGER.severe("Networks directory not found: " + basePath);
-            return networkFilesMap;
-        }
-
-        // List all network_X directories
-        File[] networkDirs = networksDir.listFiles(file -> file.isDirectory() && file.getName().startsWith("network_"));
-        
-        if (networkDirs == null) {
-            LOGGER.severe("No network directories found in: " + basePath);
-            return networkFilesMap;
-        }
-
-        // Process each network directory
-        for (File networkDir : networkDirs) {
-            List<String> xmlFiles = new ArrayList<>();
-            File[] files = networkDir.listFiles((dir, name) -> name.endsWith(".xml.gz"));
-            
-            if (files != null) {
-                for (File file : files) {
-                    xmlFiles.add(file.getName());
-                }
-                Collections.sort(xmlFiles); // Sort files for consistent ordering
-            }
-            
-            if (!xmlFiles.isEmpty()) {
-                networkFilesMap.put(networkDir.getName(), xmlFiles);
-                LOGGER.info("Found " + xmlFiles.size() + " network files in " + networkDir.getName());
-            }
-        }
-
-        return networkFilesMap;
-    }
- 
+    private static final Logger LOGGER = Logger.getLogger(RunSimulationScenarios.class.getName()); 
 
     static public void main(String[] args) throws Exception {
         Config config;
@@ -97,8 +57,11 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
         LOGGER.info("Configuration file: " + configPath);
         LOGGER.info("Working directory: " + workingDirectory);
 
+        final String networkDirectoryPath = "bavaria/data/subgraph_new_new/network_files/" + config.city + "/" + config.city + "_seed_83/networks";
         // Get all network files for this city
-        Map<String, List<String>> networkFilesMap = getNetworkFiles(config.city);
+        Map<String, List<String>> networkFilesMap = getNetworkFiles(config.city, networkDirectoryPath);
+        System.out.println("Network files map: " + networkFilesMap);
+        System.out.println("Network files map size: " + networkFilesMap.size());
         
         if (networkFilesMap.isEmpty()) {
             throw new IllegalStateException("No network files found for city: " + config.city);
@@ -131,15 +94,25 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
             );
         }
 
-        // Construct the full path to the network file
-        String fullNetworkPath = "bavaria/data/subgraph_new_new/network_files/" + config.city + "/" + 
-                                config.city + "_seed_83/networks/" + networkDir + "/" + networkFile;
-        
-        LOGGER.info("Using network file: " + fullNetworkPath);
+        final String finalNetworkFile = networkFile;
+        // Construct path relative to working directory
+        final String fullNetworkPath = "../../../subgraph_new_new/network_files/" + config.city + "/" + config.city + "_seed_83/networks/" + networkDir + "/" + networkFile;
 
-        final String finalNetworkFile = fullNetworkPath;
+        // Extract the seed from the network file name
+        String[] networkFileParts = networkFile.split("_");
+        String seed = null;
+        for (int i = 0; i < networkFileParts.length; i++) {
+            if (networkFileParts[i].startsWith("seed")) {
+                seed = networkFileParts[i].substring(4); // Extract the number after "seed"
+                break;
+            }
+        }
+        if (seed == null) {
+            throw new IllegalStateException("Seed not found in network file name: " + networkFile);
+        }
+        // Construct the output directory using the extracted seed
         final String seedOutputDirectory = "bavaria/data/simulation_output/scenarios/" + config.city + "/" + 
-                                         config.city + "_seed_83/";
+                                         config.city + "_seed_" + seed + "/";
         LOGGER.info("Output will be written to: " + seedOutputDirectory);
 
         // Check if the output file exists for the current seed
@@ -160,7 +133,7 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                 executor.submit(() -> {
                     LOGGER.info("Starting simulation task for: " + finalNetworkFile);
                     try {
-                        runSimulation(configPath, finalNetworkFile, seedOutputDirectory, workingDirectory, args,
+                        runSimulation(configPath, fullNetworkPath, seedOutputDirectory, workingDirectory, args,
                             config.threads, config.threads, config.memory);
                         LOGGER.info("Completed simulation for: " + finalNetworkFile);
                         deleteUnwantedFiles(seedOutputDirectory);
@@ -303,5 +276,44 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
         }
 
         return config;
+    }
+
+    protected static Map<String, List<String>> getNetworkFiles(String cityName, final String basePath) {
+        // Construct the path to the networks directory for the given city
+        File networksDir = new File(basePath);
+        Map<String, List<String>> networkFilesMap = new HashMap<>();
+
+        if (!networksDir.exists() || !networksDir.isDirectory()) {
+            LOGGER.severe("Networks directory not found: " + basePath);
+            return networkFilesMap;
+        }
+
+        // List all network_X directories
+        File[] networkDirs = networksDir.listFiles(file -> file.isDirectory() && file.getName().startsWith("network_"));
+        
+        if (networkDirs == null) {
+            LOGGER.severe("No network directories found in: " + basePath);
+            return networkFilesMap;
+        }
+
+        // Process each network directory
+        for (File networkDir : networkDirs) {
+            List<String> xmlFiles = new ArrayList<>();
+            File[] files = networkDir.listFiles((dir, name) -> name.endsWith(".xml.gz"));
+            
+            if (files != null) {
+                for (File file : files) {
+                    xmlFiles.add(file.getName());
+                }
+                Collections.sort(xmlFiles); // Sort files for consistent ordering
+            }
+            
+            if (!xmlFiles.isEmpty()) {
+                networkFilesMap.put(networkDir.getName(), xmlFiles);
+                LOGGER.info("Found " + xmlFiles.size() + " network files in " + networkDir.getName());
+            }
+        }
+
+        return networkFilesMap;
     }
 }

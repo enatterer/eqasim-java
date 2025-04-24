@@ -68,17 +68,6 @@ public abstract class SimulationRunnerBase {
             "--config-path", fullConfigPath
         ));
     
-        // Add VDF parameters from args
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].startsWith("--config:eqasim:vdf") || args[i].equals("--use-vdf")) {
-                arguments.add(args[i]);
-                if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-                    arguments.add(args[i + 1]);
-                    i++;
-                }
-            }
-        }
-
         System.out.println("Arguments for simulation:");
         for (String argument : arguments) {
             System.out.println(argument);
@@ -89,8 +78,17 @@ public abstract class SimulationRunnerBase {
             logFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
             errorLogFile = new File("simulation_" + networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
         } else {
-            logFile = new File(networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".log"); 
-            errorLogFile = new File(networkFile.replace("_network.xml.gz", "") + "_seed_" + randomSeed + ".error.log");
+            // for scenarios
+            String[] networkFileParts = networkFile.split("/");
+            String fileName = networkFileParts[networkFileParts.length - 1];
+            String[] fileNameParts = fileName.split("_");
+            String city = networkFileParts[networkFileParts.length - 4];
+            String primary = fileNameParts[3];
+            String nValue = fileNameParts[4];
+            String sValue = fileNameParts[5].replace(".xml.gz", "");
+            String logFileName = "simulation_" + city + "_" + primary + "_" + nValue + "_" + sValue + ".log";
+            logFile = new File(logFileName);
+            errorLogFile = new File("simulation_" + city + "_" + primary + "_" + nValue + "_" + sValue + ".error.log");
         }
         System.out.println("Log file: " + logFile);
         System.out.println("Error log file: " + errorLogFile);
