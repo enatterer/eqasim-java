@@ -88,7 +88,7 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
                     LOGGER.info("Starting simulation task for: " + networkFile + " with seed " + currentSeed);
                     try {
                         runSimulation(configPath, networkFile, seedOutputDirectory, workingDirectory, args, currentSeed, 
-                            config.threads, config.threads, config.memory);
+                            config.threads, config.threads, config.memory, true);
                         LOGGER.info("Completed simulation for: " + networkFile + " with seed " + currentSeed);
                         deleteUnwantedFiles(seedOutputDirectory);
                         LOGGER.info("Deleted unwanted files for: " + networkFile + " with seed " + currentSeed);

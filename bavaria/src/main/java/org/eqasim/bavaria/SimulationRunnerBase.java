@@ -23,25 +23,18 @@ public abstract class SimulationRunnerBase {
     protected static final Logger LOGGER = Logger.getLogger(SimulationRunnerBase.class.getName());
 
      /**
-     * Runs the MATSim simulation with the given configuration path and output directory. comment this is for simulations with always the same seed
-     *
-     * @param configPath      The path to the configuration file.
-     * @param networkFile     The network file to use for the simulation.
-     * @param outputDirectory The directory where output files will be stored.
-     * @param workingDirectory The working directory.
-     * @param args            Command line arguments.
-     * @throws Exception if an error occurs during the simulation setup or execution.
+     * Runs the MATSim simulation with a fixed random seed (1) for the different scenarios (not the base case). 
      */
     protected static void runSimulation(final String configPath, final String networkFile, final String outputDirectory, 
     final String workingDirectory, final String[] args, 
     final int numberOfThreads,
     final int numberOfThreadsQSim,
     final int memoryAllocation) throws Exception {
-        runSimulation(configPath, networkFile, outputDirectory, workingDirectory, args,1, numberOfThreads, numberOfThreadsQSim, memoryAllocation);
+        runSimulation(configPath, networkFile, outputDirectory, workingDirectory, args,1, numberOfThreads, numberOfThreadsQSim, memoryAllocation, false);
     }
 
    /**
-     * Runs the MATSim simulation with the given configuration path and output directory. this is for simulations with possibly different seeds such as in the base case
+     * Runs the MATSim simulation with the given configuration path and output directory. This is the main method, it can be called with different random seeds as for the base case, or for the scenarios. 
      *
      * @param configPath      The path to the configuration file.
      * @param networkFile     The network file to use for the simulation.
@@ -55,7 +48,8 @@ public abstract class SimulationRunnerBase {
     final int randomSeed,
     final int numberOfThreads,
     final int numberOfThreadsQSim,
-    final int memoryAllocation) throws Exception {
+    final int memoryAllocation, 
+    final boolean isForBaseCase) throws Exception {
 
         String fullConfigPath = Paths.get(workingDirectory, configPath).toString();
 
@@ -89,7 +83,6 @@ public abstract class SimulationRunnerBase {
         for (String argument : arguments) {
             System.out.println(argument);
         }
-        boolean isForBaseCase = false;
         File logFile = null	;
         File errorLogFile = null;
         if (isForBaseCase) {

@@ -163,8 +163,8 @@ public class RunSimulationScenarios extends SimulationRunnerBase {
                         runSimulation(configPath, finalNetworkFile, seedOutputDirectory, workingDirectory, args,
                             config.threads, config.threads, config.memory);
                         LOGGER.info("Completed simulation for: " + finalNetworkFile);
-                        // deleteUnwantedFiles(seedOutputDirectory);
-                        // LOGGER.info("Deleted unwanted files for: " + finalNetworkFile + " with seed " + currentSeed);
+                        deleteUnwantedFiles(seedOutputDirectory);
+                        LOGGER.info("Deleted unwanted files for: " + finalNetworkFile);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + finalNetworkFile, e);
