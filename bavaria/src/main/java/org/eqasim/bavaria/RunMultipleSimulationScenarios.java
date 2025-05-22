@@ -15,14 +15,14 @@ import java.util.logging.Logger;
  * and running all scenarios found in the network directory.
  * 
  * To run a single scenario:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --road_type primary --scenario 2 --threads 12 --memory 60 > output_augsburg_primary_s2.log 2>&1 &
+ * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --road_type primary --scenario 2 --threads 12 --memory 60 --seed 1 --hexagon_size 500 --mean_factor 4 --std_factor 8 > output_augsburg_primary_s2.log 2>&1 &
  * This is for example for the second scenario of the primary road type in Augsburg.
  * 
  * To run all scenarios:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --run_all --threads 12 --memory 60 > output_augsburg_all.log 2>&1 &
+ * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --run_all --threads 12 --memory 60 --seed 1 --hexagon_size 500 --mean_factor 4 --std_factor 8 > output_augsburg_all.log 2>&1 &
  * 
  * To control how many simulations run in parallel, use the --parallel parameter:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --run_all --threads 12 --memory 60 --parallel 4 > output_augsburg_all_parallel_4.log 2>&1 &
+ * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios --city augsburg --run_all --threads 12 --memory 60 --parallel 4 --seed 1 --hexagon_size 500 --mean_factor 4 --std_factor 8 > output_augsburg_all_parallel_4.log 2>&1 &
  * This will run up to 4 simulations concurrently, each using 12 threads internally.
  */
 public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
@@ -43,13 +43,13 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
 
         // Configuration settings
         String configPath = config.city + "_config.xml";
-        String workingDirectory = "bavaria/data/simulation_input/simulations_for_landkreis/" + config.city + "/";
+        String workingDirectory = "bavaria/data/simulation_input/simulation_per_city/" + config.city + "/";
 
         LOGGER.info("Starting simulation with the following settings:");
         LOGGER.info("Configuration file: " + configPath);
         LOGGER.info("Working directory: " + workingDirectory);
 
-        final String networkDirectoryPath = "bavaria/data/subgraph_new_new/network_files/" + config.city + "/" + config.city + "_seed_83/networks";
+        final String networkDirectoryPath = "bavaria/data/subgraph/network_files/" + config.city + "/" + config.city + "_seed_" + config.seed + "_hex" + config.hexagon_size + "_mean" + config.mean_factor + "_std" + config.std_factor + "/networks/";
         // Get all network files for this city
         Map<String, List<String>> networkFilesMap = getNetworkFiles(config.city, networkDirectoryPath);
         System.out.println("Network files map: " + networkFilesMap);
@@ -68,7 +68,91 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
             runAllScenarios(config, networkFilesMap, executor, configPath, workingDirectory, networkDirectoryPath);
         } else {
             // Run single scenario
-            runSingleScenario(config, networkFilesMap, executor, configPath, workingDirectory, networkDirectoryPath);
+            // Find the appropriate network file
+            String networkFile = null;
+            String networkDir = null;
+            String nValue = null;
+            
+            // Search through all network directories for the matching file
+            for (Map.Entry<String, List<String>> entry : networkFilesMap.entrySet()) {
+                for (String file : entry.getValue()) {
+                    if (file.contains(config.road_type) && file.contains("_s" + config.scenario)) {
+                        networkFile = file;
+                        networkDir = entry.getKey();
+                        // Extract n value
+                        String[] parts = file.split("_");
+                        for (String part : parts) {
+                            if (part.startsWith("n") && part.length() > 1) {
+                                nValue = part.substring(1);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (networkFile != null) break;
+            }
+
+            if (networkFile == null) {
+                throw new IllegalStateException(
+                    "No matching network file found for road_type=" + config.road_type + 
+                    " and scenario=" + config.scenario + " in city " + config.city
+                );
+            }
+
+            if (nValue == null) {
+                throw new IllegalStateException("Could not find n value in network file: " + networkFile);
+            }
+
+            final String finalNetworkFile = networkFile;
+            String fullNetworkPath;
+            if (networkDir.equals("main") || networkDir.isEmpty()) {
+                fullNetworkPath = "../../../subgraph/network_files/" + config.city + "/" +
+                    config.city + "_seed_"+config.seed+"_hex"+config.hexagon_size+"_mean"+config.mean_factor+"_std"+config.std_factor+"/networks/" + networkFile;
+            } else {
+                fullNetworkPath = "../../../subgraph/network_files/" + config.city + "/" +
+                    config.city + "_seed_"+config.seed+"_hex"+config.hexagon_size+"_mean"+config.mean_factor+"_std"+config.std_factor+"/networks/" + networkDir + "/" + networkFile;
+            }
+
+            // Construct output directory using road type, n value, and scenario number
+            final String outputDirectory = "bavaria/data/simulation_output/scenarios_new/" + config.city + "/"
+                + config.city + "_hex_" + config.hexagon_size + "_seed_" + config.seed + "/"
+                + config.city + "_" + config.road_type + "_network_s" + config.scenario;
+
+            // Check if the output file exists for the current scenario
+            boolean scenarioAlreadyRun = checkIfFileExists(outputDirectory, "output_events.xml.gz");
+            LOGGER.info("Checking if output exists: " + scenarioAlreadyRun);
+
+            if (!scenarioAlreadyRun) {
+                try {
+                    if (outputDirectoryExists(outputDirectory)) {
+                        createAndEmptyDirectory(outputDirectory);
+                        LOGGER.info("Emptied output directory while preserving log files: " + outputDirectory);
+                    } else {
+                        Files.createDirectories(Paths.get(outputDirectory));
+                        LOGGER.info("Created output directory: " + outputDirectory);
+                    }
+
+                    // Run simulation directly instead of submitting to executor
+                    LOGGER.info("Starting simulation task for: " + finalNetworkFile);
+                    try {
+                        runSimulation(configPath, fullNetworkPath, outputDirectory, workingDirectory, 
+                            new String[]{}, config.threads, config.threads, config.memory);
+                        LOGGER.info("Completed simulation for: " + finalNetworkFile);
+                        deleteUnwantedFiles(outputDirectory);
+                        LOGGER.info("Deleted unwanted files for: " + finalNetworkFile);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + finalNetworkFile, e);
+                    } catch (Exception e) {
+                        LOGGER.log(Level.SEVERE, "Error in simulation for: " + finalNetworkFile, e);
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(Level.SEVERE, "Failed to setup output directory: " + outputDirectory, e);
+                }
+            } else {
+                LOGGER.info("Skipping simulation - output already exists in: " + outputDirectory);
+            }
         }
 
         // Shutdown the executor
@@ -122,12 +206,13 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
 
                 if (roadType != null && scenarioNumber > 0 && nValue != null) {
                     final String finalNetworkFile = networkFile;
-                    final String fullNetworkPath = "../../../subgraph_new_new/network_files/" + config.city + "/" + 
-                        config.city + "_seed_83/networks/" + networkDir + "/" + networkFile;
+                    final String fullNetworkPath = "../../../subgraph/network_files/" + config.city + "/" + 
+                        config.city + "_seed_"+config.seed+"_hex"+config.hexagon_size+"_mean"+config.mean_factor+"_std"+config.std_factor+"/networks/" + networkDir + "/" + networkFile;
 
                     // Construct output directory using road type, n value, and scenario number
-                    final String outputDirectory = "bavaria/data/simulation_output/scenarios/" + config.city + "/" + 
-                        config.city + "_" + roadType + "_n" + nValue + "_s" + scenarioNumber + "/";
+                    final String outputDirectory = "bavaria/data/simulation_output/scenarios_new/" + config.city + "/"
+                        + config.city + "_hex_" + config.hexagon_size + "_seed_" + config.seed + "/"
+                        + config.city + "_" + roadType + "_network_s" + scenarioNumber;
 
                     // Check if the output file exists for the current scenario
                     boolean scenarioAlreadyRun = checkIfFileExists(outputDirectory, "output_events.xml.gz");
@@ -168,95 +253,14 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
         }
     }
 
-    private static void runSingleScenario(Config config, Map<String, List<String>> networkFilesMap, 
-            ExecutorService executor, String configPath, String workingDirectory, String networkDirectoryPath) {
-        // Find the appropriate network file
-        String networkFile = null;
-        String networkDir = null;
-        String nValue = null;
-        
-        // Search through all network directories for the matching file
-        for (Map.Entry<String, List<String>> entry : networkFilesMap.entrySet()) {
-            for (String file : entry.getValue()) {
-                if (file.contains(config.road_type) && file.contains("_s" + config.scenario)) {
-                    networkFile = file;
-                    networkDir = entry.getKey();
-                    // Extract n value
-                    String[] parts = file.split("_");
-                    for (String part : parts) {
-                        if (part.startsWith("n") && part.length() > 1) {
-                            nValue = part.substring(1);
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-            if (networkFile != null) break;
-        }
-
-        if (networkFile == null) {
-            throw new IllegalStateException(
-                "No matching network file found for road_type=" + config.road_type + 
-                " and scenario=" + config.scenario + " in city " + config.city
-            );
-        }
-
-        if (nValue == null) {
-            throw new IllegalStateException("Could not find n value in network file: " + networkFile);
-        }
-
-        final String finalNetworkFile = networkFile;
-        final String fullNetworkPath = "../../../subgraph_new_new/network_files/" + config.city + "/" + 
-            config.city + "_seed_83/networks/" + networkDir + "/" + networkFile;
-
-        // Construct output directory using road type, n value, and scenario number
-        final String outputDirectory = "bavaria/data/simulation_output/scenarios/" + config.city + "/" + 
-            config.city + "_" + config.road_type + "_n" + nValue + "_s" + config.scenario + "/";
-
-        // Check if the output file exists for the current scenario
-        boolean scenarioAlreadyRun = checkIfFileExists(outputDirectory, "output_events.xml.gz");
-        LOGGER.info("Checking if output exists: " + scenarioAlreadyRun);
-
-        if (!scenarioAlreadyRun) {
-            try {
-                if (outputDirectoryExists(outputDirectory)) {
-                    createAndEmptyDirectory(outputDirectory);
-                    LOGGER.info("Emptied output directory while preserving log files: " + outputDirectory);
-                } else {
-                    Files.createDirectories(Paths.get(outputDirectory));
-                    LOGGER.info("Created output directory: " + outputDirectory);
-                }
-
-                // Run simulation directly instead of submitting to executor
-                LOGGER.info("Starting simulation task for: " + finalNetworkFile);
-                try {
-                    runSimulation(configPath, fullNetworkPath, outputDirectory, workingDirectory, 
-                        new String[]{}, config.threads, config.threads, config.memory);
-                    LOGGER.info("Completed simulation for: " + finalNetworkFile);
-                    deleteUnwantedFiles(outputDirectory);
-                    LOGGER.info("Deleted unwanted files for: " + finalNetworkFile);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + finalNetworkFile, e);
-                } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Error in simulation for: " + finalNetworkFile, e);
-                }
-            } catch (IOException e) {
-                LOGGER.log(Level.SEVERE, "Failed to setup output directory: " + outputDirectory, e);
-            }
-        } else {
-            LOGGER.info("Skipping simulation - output already exists in: " + outputDirectory);
-        }
-    }
-
     /**
      * Print usage instructions
      */
     private static void printUsage() {
         LOGGER.severe("Usage: java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios " +
                      "--city <city_name> [--road_type <road_type>] [--scenario <scenario_number>] " +
-                     "[--threads <number_of_threads>] [--memory <memory_in_GB>] [--run_all] [--parallel <number_of_parallel_simulations>]");
+                     "[--threads <number_of_threads>] [--memory <memory_in_GB>] [--run_all] [--parallel <number_of_parallel_simulations>]" +
+                     "[--seed <seed_number>] [--hexagon_size <hexagon_size>] [--mean_factor <mean_factor>] [--std_factor <std_factor>]");
     }
 
     /**
@@ -280,11 +284,15 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
         int memory = 120;   // Default to 120GB
         boolean runAll = false;
         int parallel = 1;   // Default to running one simulation at a time
+        int seed = 1;
+        int hexagon_size = 500;
+        int mean_factor = 4;
+        int std_factor = 8;
 
         @Override
         public String toString() {
-            return String.format("Config{city='%s', road_type=%s, scenario=%d, threads=%d, memory=%dGB, runAll=%b, parallel=%d}", 
-                city, road_type, scenario, threads, memory, runAll, parallel);
+            return String.format("Config{city='%s', road_type=%s, scenario=%d, threads=%d, memory=%dGB, runAll=%b, parallel=%d, seed=%d, hexagon_size=%d, mean_factor=%d, std_factor=%d}", 
+                city, road_type, scenario, threads, memory, runAll, parallel, seed, hexagon_size, mean_factor, std_factor);
         }
     }
 
@@ -358,6 +366,34 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid number of parallel simulations. Please provide a positive integer.");
                 }
+            } else if (args[i].equals("--seed") && i + 1 < args.length) {
+                try {
+                    config.seed = Integer.parseInt(args[i + 1]);
+                    i++;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid seed. Please provide a positive integer.");
+                }
+            } else if (args[i].equals("--hexagon_size") && i + 1 < args.length) {
+                try {
+                    config.hexagon_size = Integer.parseInt(args[i + 1]);
+                    i++;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid hexagon size. Please provide a positive integer.");
+                }
+            } else if (args[i].equals("--mean_factor") && i + 1 < args.length) {
+                try {
+                    config.mean_factor = Integer.parseInt(args[i + 1]);
+                    i++;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid mean factor. Please provide a positive integer.");
+                }
+            } else if (args[i].equals("--std_factor") && i + 1 < args.length) {
+                try {
+                    config.std_factor = Integer.parseInt(args[i + 1]);
+                    i++;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid standard deviation factor. Please provide a positive integer.");
+                }
             }
         }
 
@@ -369,6 +405,18 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
         // Validate that either run_all is true or both road_type and scenario are provided
         if (!config.runAll && (config.road_type == null || config.scenario < 1)) {
             throw new IllegalArgumentException("When not using --run_all, both --road_type and --scenario must be provided");
+        }
+        if (config.seed < 1) {
+            throw new IllegalArgumentException("Seed must be positive");
+        }
+        if (config.hexagon_size < 1) {
+            throw new IllegalArgumentException("Hexagon size must be positive");
+        }
+        if (config.mean_factor < 1) {
+            throw new IllegalArgumentException("Mean factor must be positive");
+        }
+        if (config.std_factor < 1) {
+            throw new IllegalArgumentException("Standard deviation factor must be positive");
         }
 
         return config;

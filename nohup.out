@@ -1,0 +1,205 @@
+
+Running for hexagon_size=500, subgraph_count=2945, mean_factor=4, std_factor=8
+Loading file: /hppfs/work/pn39mu/go69tef3/eqasim_bavaria/bavaria/data/simulation_output/basecases_new/ingolstadt/ingolstadt_seed_1/output_links.csv.gz
+Total edges in original file: 13790
+
+Full duplicates (same from_node, to_node, geometry, modes): 196
+Edges after removing full duplicates (based on higher car volume): 13692
+Number of full duplicates removed: 98
+
+Leftover duplicates (same from_node, to_node only): 48
+Number of unique node pairs with leftover duplicates: 24
+
+Final edges after processing all duplicates: 13668
+Total edges removed: 122
+
+Selection criteria statistics:
+Total duplicate groups processed: 24
+Selected by having both car modes: 22 (91.7%)
+Selected by longest modes string: 2 (8.3%)
+Selected by highest vol_car (tiebreaker): 0 (0.0%)
+
+✅ SUCCESS: No duplicates remain in the final network!
+Created nodes_dict with 6059 unique nodes
+Total number of hexagons created: 250
+Number of hexagons in multiple zones: 0
+Traceback (most recent call last):
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1490, in array_func
+    result = self.grouper._cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 959, in _cython_operation
+    return cy_op.cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 649, in cython_operation
+    return self._ea_wrap_cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 365, in _ea_wrap_cython_operation
+    npvalues = self._ea_to_cython_values(values)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 394, in _ea_to_cython_values
+    raise NotImplementedError(
+NotImplementedError: function is not implemented for this dtype: geometry
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 913, in <module>
+    main()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 827, in main
+    gdf_edges_with_hex,hexagon_grid_all = merge_edges_and_hexagon_grid(zones_gdf, hexagon_size ,
+  File "/hppfs/work/pn39mu/go69tef3/eqasim_bavaria/bavaria/src/main/python/creating_subgraphs/hexagon_creation_and_plot.py", line 500, in merge_edges_and_hexagon_grid
+    gdf_edges_with_hex = gdf_edges_with_hex.groupby('link').agg({
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/generic.py", line 1269, in aggregate
+    result = op.agg()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 163, in agg
+    return self.agg_dict_like()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 420, in agg_dict_like
+    results = {
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 421, in <dictcomp>
+    key: obj._gotitem(key, ndim=1).agg(how) for key, how in arg.items()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/generic.py", line 232, in aggregate
+    return getattr(self, func)(*args, **kwargs)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2384, in first
+    return self._agg_general(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1422, in _agg_general
+    result = self._cython_agg_general(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1507, in _cython_agg_general
+    new_mgr = data.grouped_reduce(array_func)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/internals/base.py", line 197, in grouped_reduce
+    res = func(arr)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1503, in array_func
+    result = self._agg_py_fallback(values, ndim=data.ndim, alt=alt)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1457, in _agg_py_fallback
+    res_values = self.grouper.agg_series(ser, alt, preserve_dtype=True)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 994, in agg_series
+    result = self._aggregate_series_pure_python(obj, func)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 1015, in _aggregate_series_pure_python
+    res = func(group)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2380, in first_compat
+    return first(obj)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2372, in first
+    arr = x.array[notna(x.array)]
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/dtypes/missing.py", line 429, in notna
+    res = isna(obj)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/dtypes/missing.py", line 183, in isna
+    return _isna(obj)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/dtypes/missing.py", line 212, in _isna
+    return _isna_array(obj, inf_as_na=inf_as_na)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/dtypes/missing.py", line 292, in _isna_array
+    result = values.isna()  # type: ignore[assignment]
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/geopandas/array.py", line 1111, in isna
+    return shapely.is_missing(self._data)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/shapely/decorators.py", line 75, in wrapped
+    for arr in array_args:
+KeyboardInterrupt
+
+Running for hexagon_size=500, subgraph_count=600, mean_factor=4, std_factor=8
+Loading file: /hppfs/work/pn39mu/go69tef3/eqasim_bavaria/bavaria/data/simulation_output/basecases_new/schweinfurt/schweinfurt_seed_1/output_links.csv.gz
+Total edges in original file: 32154
+
+Full duplicates (same from_node, to_node, geometry, modes): 300
+Edges after removing full duplicates (based on higher car volume): 32004
+Number of full duplicates removed: 150
+
+Leftover duplicates (same from_node, to_node only): 20
+Number of unique node pairs with leftover duplicates: 10
+
+Final edges after processing all duplicates: 31994
+Total edges removed: 160
+
+Selection criteria statistics:
+Total duplicate groups processed: 10
+Selected by having both car modes: 2 (20.0%)
+Selected by longest modes string: 8 (80.0%)
+Selected by highest vol_car (tiebreaker): 0 (0.0%)
+
+✅ SUCCESS: No duplicates remain in the final network!
+Created nodes_dict with 14607 unique nodes
+Traceback (most recent call last):
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1490, in array_func
+    result = self.grouper._cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 959, in _cython_operation
+    return cy_op.cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 649, in cython_operation
+    return self._ea_wrap_cython_operation(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 365, in _ea_wrap_cython_operation
+    npvalues = self._ea_to_cython_values(values)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 394, in _ea_to_cython_values
+    raise NotImplementedError(
+NotImplementedError: function is not implemented for this dtype: geometry
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 913, in <module>
+    main()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 825, in main
+    gdf_edges_with_zones = merge_edges_and_zones(cleaned_network, zones_gdf)
+  File "/hppfs/work/pn39mu/go69tef3/eqasim_bavaria/bavaria/src/main/python/creating_subgraphs/hexagon_creation_and_plot.py", line 365, in merge_edges_and_zones
+    gdf_edges_with_zones = gdf_edges_with_zones.groupby('link').agg({
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/generic.py", line 1269, in aggregate
+    result = op.agg()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 163, in agg
+    return self.agg_dict_like()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 420, in agg_dict_like
+    results = {
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/apply.py", line 421, in <dictcomp>
+    key: obj._gotitem(key, ndim=1).agg(how) for key, how in arg.items()
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/generic.py", line 232, in aggregate
+    return getattr(self, func)(*args, **kwargs)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2384, in first
+    return self._agg_general(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1422, in _agg_general
+    result = self._cython_agg_general(
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1507, in _cython_agg_general
+    new_mgr = data.grouped_reduce(array_func)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/internals/base.py", line 197, in grouped_reduce
+    res = func(arr)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1503, in array_func
+    result = self._agg_py_fallback(values, ndim=data.ndim, alt=alt)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 1457, in _agg_py_fallback
+    res_values = self.grouper.agg_series(ser, alt, preserve_dtype=True)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 994, in agg_series
+    result = self._aggregate_series_pure_python(obj, func)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/ops.py", line 1015, in _aggregate_series_pure_python
+    res = func(group)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2380, in first_compat
+    return first(obj)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/groupby/groupby.py", line 2372, in first
+    arr = x.array[notna(x.array)]
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/geopandas/array.py", line 387, in __getitem__
+    idx = pd.api.indexers.check_array_indexer(self, idx)
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/pandas/core/indexers/utils.py", line 540, in check_array_indexer
+    if len(indexer) != len(array):
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/geopandas/array.py", line 379, in __len__
+    return self.shape[0]
+  File "/dss/dsshome1/05/go69tef3/venv/myenv/lib/python3.8/site-packages/geopandas/array.py", line 983, in shape
+    @property
+KeyboardInterrupt
+usage: subgraph_creation.py [-h] --hexagon_sizes HEXAGON_SIZES
+                            [HEXAGON_SIZES ...] --mean_factors MEAN_FACTORS
+                            [MEAN_FACTORS ...] --std_factors STD_FACTORS
+                            [STD_FACTORS ...] --subgraph_counts
+                            SUBGRAPH_COUNTS [SUBGRAPH_COUNTS ...]
+                            city
+subgraph_creation.py: error: the following arguments are required: --subgraph_counts
+Traceback (most recent call last):
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 913, in <module>
+    main()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 775, in main
+    args = parse_arguments()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 145, in parse_arguments
+    raise ValueError("All argument lists must be the same length!")
+ValueError: All argument lists must be the same length!
+Traceback (most recent call last):
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 913, in <module>
+    main()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 775, in main
+    args = parse_arguments()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 145, in parse_arguments
+    raise ValueError("All argument lists must be the same length!")
+ValueError: All argument lists must be the same length!
+Traceback (most recent call last):
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 913, in <module>
+    main()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 775, in main
+    args = parse_arguments()
+  File "bavaria/src/main/python/creating_subgraphs/subgraph_creation.py", line 145, in parse_arguments
+    raise ValueError("All argument lists must be the same length!")
+ValueError: All argument lists must be the same length!

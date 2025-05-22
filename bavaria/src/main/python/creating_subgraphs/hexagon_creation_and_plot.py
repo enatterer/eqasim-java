@@ -17,12 +17,9 @@ import xml.etree.ElementTree as ET
 
 
 # Third-party imports
-import networkx as nx
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import osmnx as ox
-import seaborn as sns
 from shapely import wkt
 from shapely.geometry import LineString, box
 import shapely.geometry as sgeo
@@ -362,7 +359,7 @@ def merge_edges_and_zones(gdf_csv, zones_gdf):
         GeoDataFrame with edges and their intersecting zones
     '''
     # Perform spatial join
-    gdf_edges_with_zones = gpd.sjoin(gdf_csv, zones_gdf, how='left', predicate='intersects')
+    gdf_edges_with_zones = gpd.sjoin(gdf_csv, zones_gdf, how='left', op='intersects')
     
     # Group by edge ID and aggregate attributes
     gdf_edges_with_zones = gdf_edges_with_zones.groupby('link').agg({
@@ -371,9 +368,7 @@ def merge_edges_and_zones(gdf_csv, zones_gdf):
         'length': 'first',
         'freespeed': 'first',
         'capacity': 'first',
-        'permlanes': 'first',
         'modes': 'first',
-        'oneway': 'first',
         'vol_car': 'first',
         'osm:way:highway': 'first',
         'geometry': 'first',
@@ -381,7 +376,7 @@ def merge_edges_and_zones(gdf_csv, zones_gdf):
     }).reset_index()
 
     # Convert numeric columns
-    numeric_columns = ['freespeed', 'capacity', 'permlanes', 'vol_car']
+    numeric_columns = ['freespeed', 'capacity','vol_car']
     for col in numeric_columns:
         if col in gdf_edges_with_zones.columns:
             gdf_edges_with_zones[col] = pd.to_numeric(gdf_edges_with_zones[col], errors='coerce')
@@ -497,7 +492,7 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
 
     # Spatial join to assign each edge the hexagon(s) it falls into
     gdf_edges_with_hex = gpd.sjoin(gdf_edges_with_zones, hexagon_grid_all[['geometry', 'hex_zone_id', 'grid_id']], 
-                                how='left', predicate='intersects')
+                                how='left', op='intersects')
 
     # Group by edge 'link' and aggregate the hexagon IDs into a list
     gdf_edges_with_hex = gdf_edges_with_hex.groupby('link').agg({
@@ -506,9 +501,7 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
         'length': 'first',
         'freespeed': 'first',
         'capacity': 'first',
-        'permlanes': 'first',
         'modes': 'first',
-        'oneway': 'first',
         'vol_car': 'first',
         'osm:way:highway': 'first',
         'geometry': 'first',
@@ -528,7 +521,7 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
     gdf_edges_with_hex.rename(columns={'grid_id': 'hexagon'}, inplace=True)
 
     # Convert numeric columns
-    numeric_columns = ['freespeed', 'capacity', 'lanes', 'vol_car']
+    numeric_columns = ['freespeed', 'capacity','vol_car']
     for col in numeric_columns:
         if col in gdf_edges_with_hex.columns:
             gdf_edges_with_hex[col] = pd.to_numeric(gdf_edges_with_hex[col], errors='coerce')

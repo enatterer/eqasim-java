@@ -19,10 +19,10 @@ from shapely.ops import nearest_points
 import matplotlib.pyplot as plt
 
 
-city_name = "augsburg"
+city_name = "rosenheim"
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-basecase_subdir_path = base_dir / "data" / "simulation_output" / "basecases" / city_name
+basecase_subdir_path = base_dir / "data" / "simulation_output" / "basecases_new" / city_name
 result_path_basecase_mean = base_dir / "data" / "basecases_mean"
 
 
@@ -34,7 +34,7 @@ def create_dic_seed_to_output_links(subdir):
         output_links_path = subdir / 'output_links.csv.gz'
         if os.path.exists(output_links_path):
             # Read as DataFrame first
-            df_output_links = pd.read_csv(output_links_path, delimiter=';')
+            df_output_links = pd.read_csv(output_links_path, delimiter=';', low_memory=False)
             # Convert to GeoDataFrame using the geometry column
             if 'geometry' in df_output_links.columns:
                 df_output_links['geometry'] = gpd.GeoSeries.from_wkt(df_output_links['geometry'])
@@ -49,7 +49,7 @@ def create_dic_seed_to_eqasim_trips_given_output_trips(subdir):
         seed_number = subdir_name.split("_")[-1]
         output_trips_path = subdir / 'eqasim_trips.csv'
         if os.path.exists(output_trips_path):
-            df_output_trips = pd.read_csv(output_trips_path, delimiter=';')
+            df_output_trips = pd.read_csv(output_trips_path, delimiter=';', low_memory=False)
             result_dic[seed_number] = df_output_trips
     return result_dic
     
@@ -106,7 +106,7 @@ def plot_basecase_mean_file(city_name,):
                     legend_kwds={'label': 'Car Volume',
                                 'orientation': 'vertical'},
                     cmap='plasma',  # Yellow to Red colormap
-                    linewidth=0.2)
+                    linewidth=0.2,aspect=1)
 
     # Customize the plot
     plt.title(f'Average Car Volume in {city_name.title()}', fontsize=16)
@@ -177,23 +177,21 @@ def create_basecase_trips_mean_file(city_name,df_basecase_trips):
     df_basecase_trips.to_csv(result_path_basecase_trips, index=False)
 
 def calculate_edge_metrics(simulation_gdfs, mean_gdf):
-    edge_volumes = {}
-    # Collect volumes for each edge across all simulations
-    for df in simulation_gdfs:
-        for idx, row in df.iterrows():
-            link = row['link']
-            volume = row['vol_car']
-            if link not in edge_volumes:
-                edge_volumes[link] = []
-            edge_volumes[link].append(volume)
-            
-    variances = {link: np.var(np.array(volumes)) for link, volumes in edge_volumes.items()}
-    cvs = {link: (np.std(np.array(volumes)) / np.mean(np.array(volumes)) * 100) if np.mean(np.array(volumes)) != 0 else 0 for link, volumes in edge_volumes.items()}
-    std_devs = {link: np.std(np.array(volumes)) for link, volumes in edge_volumes.items()}
+    # Concatenate all simulation DataFrames, adding a simulation id if needed
+    all_dfs = pd.concat(simulation_gdfs, ignore_index=True)
     
-    # Add metrics to the mean_gdf
+    # Group by 'link' and aggregate
+    grouped = all_dfs.groupby('link')['vol_car']
+    variances = grouped.var().to_dict()
+    std_devs = grouped.std().to_dict()
+    means = grouped.mean().to_dict()
+    
+    # Coefficient of Variation (CV) as percentage
+    cvs = {link: (std_devs[link] / means[link] * 100) if means[link] != 0 else 0 for link in means}
+    
+    # Map results back to mean_gdf
     mean_gdf['variance'] = mean_gdf['link'].map(variances)
-    mean_gdf['cv_percent'] = mean_gdf['link'].map(cvs)  # Coefficient of Variation as percentage
+    mean_gdf['cv_percent'] = mean_gdf['link'].map(cvs)
     mean_gdf['std_dev'] = mean_gdf['link'].map(std_devs)
     return mean_gdf
 
@@ -240,7 +238,7 @@ def print_edge_metrics(mean_gdf):
    
 def plot_edge_metrics(gdf_basecase_mean):
     # Get one trunk link
-    trunk_link = gdf_basecase_mean[gdf_basecase_mean['highway'] == 'trunk']['link'].iloc[0]
+    trunk_link = gdf_basecase_mean[gdf_basecase_mean['highway'] == 'trunk']['link'].iloc[2]
 
     # Get the true mean volume from gdf_basecase_mean
     true_mean = gdf_basecase_mean[gdf_basecase_mean['link'] == trunk_link]['vol_car'].iloc[0]
@@ -280,11 +278,11 @@ def plot_edge_metrics(gdf_basecase_mean):
     print(f"Number of simulation runs: {len(simulated_volumes)}")
     print(f"Standard deviation: {np.std(simulated_volumes):.2f}")
 
-random_seed_2_df_basecase_output_links = create_dic_seed_to_output_links(subdir=basecase_subdir_path)
-random_seed_2_df_basecase_trips = create_dic_seed_to_eqasim_trips_given_output_trips(subdir=basecase_subdir_path)
+random_seed_to_df_basecase_output_links = create_dic_seed_to_output_links(subdir=basecase_subdir_path)
+random_seed_to_df_basecase_trips = create_dic_seed_to_eqasim_trips_given_output_trips(subdir=basecase_subdir_path)
 
 
-basecase_output_links_gdfs = list(random_seed_2_df_basecase_output_links.values())
+basecase_output_links_gdfs = list(random_seed_to_df_basecase_output_links.values())
 
 gdf_basecase_mean = compute_average_or_median_geodataframe(geodataframes=basecase_output_links_gdfs, column_name="vol_car", is_mean=True)
 gdf_basecase_mean = gdf_basecase_mean.rename(columns={"osm:way:highway": "highway"})
@@ -295,7 +293,7 @@ print_edge_metrics(gdf_basecase_mean)
 plot_edge_metrics(gdf_basecase_mean)
 
 
-basecase_trips_dfs = list(random_seed_2_df_basecase_trips.values())
+basecase_trips_dfs = list(random_seed_to_df_basecase_trips.values())
 df_average_mode_stats = calculate_avg_mode_stats(basecase_trips_dfs)
 create_basecase_trips_mean_file(city_name=city_name,df_basecase_trips=df_average_mode_stats)
 

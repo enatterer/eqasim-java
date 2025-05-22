@@ -19,11 +19,14 @@ from shapely.ops import nearest_points
 import matplotlib.pyplot as plt
 
 
-city_name = "augsburg"
+city_name = "rosenheim"
+hex_size = 500
+seed_number = 2
+road_type = "primary"
+scenario_number = 2
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-scenario_subdir_path = base_dir / "data" / "simulation_output" / "scenarios" / city_name / f"{city_name}_seed_6_capfactor_0.5"
-result_path_scenario_mean = base_dir / "data" / "scenario_mean"
+scenario_subdir_path = base_dir / "data" / "simulation_output" / "scenarios_new" / city_name / f"{city_name}_hex_{hex_size}_seed_{seed_number}/{city_name}_{road_type}_network_s{scenario_number}/"
 result_path_difference = base_dir / "data" / "difference_mean"
 
 def create_dic_seed_to_output_links(subdir):
@@ -78,21 +81,21 @@ def compute_average_or_median_geodataframe(geodataframes, column_name, is_mean: 
     
     return average_gdf    
 
-def create_scenario_output_links_mean_file(city_name, gdf_scenario_mean):
-    result_path_scenario_mean = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_secondary_scenario_average_output_links.geojson"
+def create_scenario_output_links_mean_file(city_name, gdf_scenario_mean, road_type):
+    result_path_scenario_mean = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_scenario_average_output_links.geojson"
     # Create the directory structure if it doesn't exist
     result_path_scenario_mean.parent.mkdir(parents=True, exist_ok=True)
     gdf_scenario_mean.to_file(result_path_scenario_mean, driver='GeoJSON')
 
-def create_difference_output_links_mean_file(city_name, gdf_difference_mean):
-    result_path_difference = base_dir / "data" / "difference_mean" / city_name / f"{city_name}_secondary_difference_average_output_links.geojson"
+def create_difference_output_links_mean_file(city_name, gdf_difference_mean, road_type):
+    result_path_difference = base_dir / "data" / "difference_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_difference_average_output_links.geojson"
     # Create the directory structure if it doesn't exist
     result_path_difference.parent.mkdir(parents=True, exist_ok=True)
     gdf_difference_mean.to_file(result_path_difference, driver='GeoJSON')
 
-def plot_scenario_mean_file(city_name,): 
+def plot_scenario_mean_file(city_name, road_type): 
     # Set up the paths
-    geojson_path = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_secondary_scenario_average_output_links.geojson"
+    geojson_path = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_scenario_average_output_links.geojson"
 
     # Read the GeoJSON file
     gdf = gpd.read_file(geojson_path)
@@ -126,7 +129,7 @@ def plot_scenario_mean_file(city_name,):
             fc='k', ec='k', transform=ax.transAxes)
 
     # Save the plot
-    output_plot_path = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_secondary_traffic_volume_map.png"
+    output_plot_path = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_traffic_volume_map.png"
     plt.savefig(output_plot_path, dpi=600, bbox_inches='tight')
     plt.show()
 
@@ -173,7 +176,7 @@ def calculate_avg_mode_stats(single_mode_stats_list: list):
     return average_mode_stats
 
 def create_scenario_trips_mean_file(city_name,df_scenario_trips):
-    result_path_scenario_trips = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_scenario_average_trips.csv"
+    result_path_scenario_trips = base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_scenario_average_trips.csv"
     # Create the directory structure if it doesn't exist
     result_path_scenario_trips.parent.mkdir(parents=True, exist_ok=True)
     df_scenario_trips.to_csv(result_path_scenario_trips, index=False)
@@ -384,8 +387,8 @@ gdf_basecase_mean = gpd.read_file(base_dir / "data" / "basecases_mean" / city_na
 gdf_comparison_mean_extended = extend_geodataframe(gdf_base = gdf_basecase_mean, gdf_to_extend=gdf_scenario_mean, column_to_extend='highway', new_column_name='highway')
 gdf_basecase_without_unnecessary_columns = remove_columns(gdf_with_correct_columns=gdf_comparison_mean_extended, gdf_to_be_adapted=gdf_basecase_mean)
 gdf_basecase_difference = compute_difference_geodataframe(gdf_to_substract_from=gdf_comparison_mean_extended, gdf_to_substract=gdf_basecase_without_unnecessary_columns, column_name= 'vol_car')
-create_scenario_output_links_mean_file(city_name=city_name,gdf_scenario_mean=gdf_comparison_mean_extended)
-create_difference_output_links_mean_file(city_name=city_name,gdf_difference_mean=gdf_basecase_difference)
+create_scenario_output_links_mean_file(city_name=city_name,gdf_scenario_mean=gdf_comparison_mean_extended, road_type=road_type)
+create_difference_output_links_mean_file(city_name=city_name,gdf_difference_mean=gdf_basecase_difference, road_type=road_type)
 
 
 plot_scenario_mean_file(city_name=city_name)

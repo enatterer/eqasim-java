@@ -22,28 +22,61 @@ from shapely.ops import unary_union
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
+city_name = "rosenheim"
+hex_size = 500
+seed_number = 2
+road_type = "primary"
+scenario_number = 2
+mean = 4
+std =8
 
-zones = gpd.read_file(base_dir / "data" / 'city_boundaries' / 'augsburg' / 'augsburg.json')
-gdf_basecase_mean = gpd.read_file(base_dir / "data" / "basecases_mean" / "augsburg" / "augsburg_basecase_average_output_links.geojson")
-gdf_basecase_difference = gpd.read_file(base_dir / "data" / "difference_mean" / "augsburg" / "augsburg_secondary_difference_average_output_links.geojson")
-gdf_model_output = gpd.read_file(base_dir / "data" / "scenario_mean" / "augsburg" / "augsburg_secondary_scenario_average_output_links.geojson")
+zones = gpd.read_file(base_dir / "data" / 'city_boundaries' / city_name / f'{city_name}.json')
+gdf_basecase_mean = gpd.read_file(base_dir / "data" / "basecases_mean" / city_name / f"{city_name}_basecase_average_output_links.geojson")
+gdf_difference = gpd.read_file(base_dir / "data" / "difference_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_difference_average_output_links.geojson")
+gdf_scenario_mean = gpd.read_file(base_dir / "data" / "scenario_mean" / city_name / f"{city_name}_{road_type}_network_s{scenario_number}_scenario_average_output_links.geojson")
 
 # Load hexagon grid
-hexagon_grid = gpd.read_file(base_dir / "data" / "subgraph_new_new" / "hexagon" / "augsburg" / "data" / "augsburg_hexagon_grid.geojson")
-scenario_hexagon_file = base_dir / "data" / "subgraph_new_new" / "network_files" / "augsburg" / "augsburg_seed_83" / "networks" / "network_1" / "network_seed83_augsburg_secondary_n9_s2_hexagons.json"
+hexagon_grid = gpd.read_file(base_dir / "data" / "subgraph" / "hexagon" / city_name / f"{city_name}_seed_{seed_number}_hex{hex_size}_mean{mean}_std{std}/" / 'data' / f"{city_name}_hexagon_grid.geojson")
 
-#load edges where capacity reduction was applied
-gdf_with_capacity_reduction = gpd.read_file(base_dir / "data" / "subgraph_new_new" / "network_files" / "augsburg" / "augsburg_seed_83" / "networks" / "network_1" / "network_seed83_augsburg_secondary_n9_s2_reduced_capacity_edges.geojson")
+# Build the directory path (up to the networks folder)
+networks_dir = base_dir / "data" / "subgraph" / "network_files" / city_name / f"{city_name}_seed_{seed_number}_hex{hex_size}_mean{mean}_std{std}" / "networks"
+
+# Build the pattern for files ending with s_{scenario_number}.json
+pattern_hexagon_files = f"network_seed{seed_number}_{city_name}_{road_type}_n*_s{scenario_number}_hexagons.json"
+pattern_capacity_reduction = f"network_seed{seed_number}_{city_name}_{road_type}_n*_s{scenario_number}_reduced_capacity_edges.geojson"
+pattern_all_roadtypes = f"network_seed{seed_number}_{city_name}_{road_type}_n*_s{scenario_number}_edges_of_roadtype.geojson"
+
+# Use glob to find matching files
+matching_files = list(networks_dir.glob(pattern_hexagon_files))
+matching_files_capacity_reduction = list(networks_dir.glob(pattern_capacity_reduction))
+matching_files_all_roadtypes = list(networks_dir.glob(pattern_all_roadtypes))
+
+if matching_files and matching_files_capacity_reduction and matching_files_all_roadtypes:
+    scenario_hexagon_file = matching_files[0]  # Take the first match, or handle as needed
+    scenario_capacity_reduction_file = matching_files_capacity_reduction[0]
+    scenario_all_roadtypes_file = matching_files_all_roadtypes[0]
+    gdf_with_capacity_reduction = gpd.read_file(scenario_capacity_reduction_file)
+    gdf_with_all_roadtypes_in_scenario = gpd.read_file(scenario_all_roadtypes_file)
+else:
+    scenario_hexagon_file = None  # Or raise an error, or handle as you wish
+    gdf_with_capacity_reduction = None
+    gdf_with_all_roadtypes_in_scenario = None
+    raise ValueError("No matching files found")
+
+print(f"Selected file for hexagon file: {scenario_hexagon_file}")
+print(f"Selected file for capacity reduction: {scenario_capacity_reduction_file}")
+print(f"Selected file for all roadtypes in scenario: {scenario_all_roadtypes_file}")
 
 #to adapt
-plot_in_percentage = False
+plot_in_percentage = True
 zone = 0
 
-def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFrame, 
+def plot_simulation_output(gdf, in_percentage: bool, target_zone: gpd.GeoDataFrame, 
                       scenario_hexagon_file: Path = None, do_save: bool=False,
                       gdf_basecase_mean: gpd.GeoDataFrame = None,
                       gdf_model_output: gpd.GeoDataFrame = None,
-                      gdf_with_capacity_reduction: gpd.GeoDataFrame = None):
+                      gdf_with_capacity_reduction: gpd.GeoDataFrame = None,
+                      gdf_with_all_roadtypes_in_scenario: gpd.GeoDataFrame = None):
     """
     Plot simulation output with differences to base case and overlay selected hexagons.
     
@@ -58,15 +91,15 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
     gdf_with_capacity_reduction: GeoDataFrame containing edges where capacity was reduced
     """
     # Convert DataFrame to GeoDataFrame with correct CRS
-    column_to_plot = "vol_car" if in_percentage else "vol_car_clipped_percentage_difference"
+    column_to_plot = "vol_car_clipped_percentage_difference" if in_percentage else "vol_car"
     print(f"\nTrying to plot column: {column_to_plot}")
     
-    if column_to_plot not in df.columns:
+    if column_to_plot not in gdf.columns:
         raise ValueError(f"Column {column_to_plot} not found in DataFrame")
-    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:25832")
+    gdf = gpd.GeoDataFrame(gdf, geometry='geometry', crs="EPSG:25832")
 
     # Set up the plot
-    fig, ax = plt.subplots(1, 1, figsize=(20, 20), dpi=600)
+    fig, ax = plt.subplots(1, 1, figsize=(20, 20), dpi=800)
     
     # Check intersections with target zone and convert to boolean
     gdf['intersects_target_zone'] = gdf.geometry.apply(
@@ -102,13 +135,19 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
     
     if len(intersecting_data) > 0:
         # If we have capacity reduction data, split the intersecting data into two parts
-        if gdf_with_capacity_reduction is not None:
+        if (
+            gdf_with_capacity_reduction is not None and not gdf_with_capacity_reduction.empty and
+            gdf_with_all_roadtypes_in_scenario is not None and not gdf_with_all_roadtypes_in_scenario.empty
+        ):
             capacity_reduced_links = set(gdf_with_capacity_reduction['link'].values)
-            print(f"\nNumber of capacity reduced links: {len(capacity_reduced_links)}")
+            all_roadtypes_in_scenario_links = set(gdf_with_all_roadtypes_in_scenario['link'].values)
+            print(f"Number of all {road_type} links in scenario hexagons: {len(all_roadtypes_in_scenario_links)}")   
+            print(f"\nNumber of {road_type} links with capacity reduction in scenario hexagons: {len(capacity_reduced_links)}")
             
             # Separate edges with and without capacity reduction
             reduced_edges = intersecting_data[intersecting_data['link'].isin(capacity_reduced_links)]
-            normal_edges = intersecting_data[~intersecting_data['link'].isin(capacity_reduced_links)]
+            roadtype_edges = intersecting_data[intersecting_data['link'].isin(all_roadtypes_in_scenario_links)]
+            normal_edges = intersecting_data[~intersecting_data['link'].isin(capacity_reduced_links) & ~intersecting_data['link'].isin(all_roadtypes_in_scenario_links)]
             
             print(f"Number of reduced edges: {len(reduced_edges)}")
             print(f"Number of normal edges: {len(normal_edges)}")
@@ -118,26 +157,42 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
                 print("\nPlotting normal edges...")
                 print(f"Normal edges bounds: {normal_edges.total_bounds}")
                 try:
-                    normal_edges.plot(column=column_to_plot, cmap='coolwarm', linewidth=1.3, ax=ax, 
-                                    norm=norm, label="Roads in target zone", zorder=2)
+                    normal_edges.plot(column=column_to_plot, cmap='coolwarm', linewidth=2, ax=ax, 
+                                    norm=norm, label="Roads in target zone", zorder=2,aspect=1)
                 except Exception as e:
                     print(f"Error plotting normal edges: {str(e)}")
             
             # Plot capacity-reduced edges with thicker lines
+            if len(roadtype_edges) > 0:
+                print("\nPlotting roadtype edges...")
+                print(f"Roadtype edges bounds: {roadtype_edges.total_bounds}")
+                try:
+                    roadtype_edges.plot(column=column_to_plot, cmap='coolwarm', linewidth=4, ax=ax,
+                                     norm=norm, label="Roads with capacity reduction", zorder=3.5, aspect=1)
+                except Exception as e:
+                    print(f"Error plotting roadtype edges: {str(e)}")
+                print(f"\nNumber of roadtype edges in view: {len(roadtype_edges)}")
+                
             if len(reduced_edges) > 0:
                 print("\nPlotting reduced edges...")
                 print(f"Reduced edges bounds: {reduced_edges.total_bounds}")
                 try:
-                    reduced_edges.plot(column=column_to_plot, cmap='coolwarm', linewidth=2.6, ax=ax,
-                                     norm=norm, label="Roads with capacity reduction", zorder=3, aspect=1)
+                    # First plot: thick black line (border)
+                    reduced_edges.plot(
+                        ax=ax, color='black', linewidth=5.2, zorder=4.2,aspect=1
+                    )
+                    # Second plot: colored line, slightly thinner, on top
+                    reduced_edges.plot(
+                        column=column_to_plot, cmap='coolwarm', linewidth=4, ax=ax,
+                        norm=norm, label="Capacity reduced roads", zorder=5,aspect=1
+                    )
                 except Exception as e:
                     print(f"Error plotting reduced edges: {str(e)}")
-                print(f"\nNumber of capacity-reduced edges in view: {len(reduced_edges)}")
         else:
             # Plot all edges normally if no capacity reduction data
             print("\nPlotting all edges (no capacity reduction data)...")
             try:
-                intersecting_data.plot(column=column_to_plot, cmap='coolwarm', linewidth=1.3, ax=ax,
+                intersecting_data.plot(column=column_to_plot, cmap='coolwarm', linewidth=2.6, ax=ax,
                                      norm=norm, label="Roads in target zone", zorder=2)
             except Exception as e:
                 print(f"Error plotting all edges: {str(e)}")
@@ -174,7 +229,7 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
     
     
     # Plot hexagon grid
-    hexagon_grid.plot(ax=ax, color='none', edgecolor='gray', alpha=0.3, linewidth=0.5, zorder=3)
+    hexagon_grid.plot(ax=ax, color='none', edgecolor='gray', alpha=0.5, linewidth=0.8, zorder=3,aspect=1)
     
     # If scenario hexagon file is provided, highlight selected hexagons
     if scenario_hexagon_file and scenario_hexagon_file.exists():
@@ -185,7 +240,7 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
             # Highlight selected hexagons
             selected_grid = hexagon_grid[hexagon_grid['grid_id'].isin(selected_hexagons)]
             selected_grid.plot(ax=ax, color='none', edgecolor='green', 
-                             linewidth=1.3, label=f"Selected Hexagons ({scenario_data['road_type']})", zorder=4)
+                             linewidth=1.2, label=f"Selected Hexagons ({scenario_data['road_type']})", zorder=6,aspect=1)
             
             # Add hexagon IDs as labels for selected hexagons
             for _, row in selected_grid.iterrows():
@@ -204,7 +259,7 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
     outer_boundary = unary_union(buffered_zone.geometry).boundary
     
     # Plot only the outer boundary
-    gpd.GeoSeries(outer_boundary, crs=gdf.crs).plot(ax=ax, edgecolor='black', linewidth=2, label="Target Zone", zorder=6)
+    gpd.GeoSeries(outer_boundary, crs=gdf.crs).plot(ax=ax, edgecolor='black', linewidth=2, label="Target Zone", zorder=6,aspect=1)
     
     plt.xlabel("X Coordinate", fontname='Times New Roman', fontsize=15)
     plt.ylabel("Y Coordinate", fontname='Times New Roman', fontsize=15)
@@ -235,9 +290,9 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
     cbar.ax.yaxis.label.set_size(15)
     
     if in_percentage:
-        cbar.set_label('Car volume: Difference to base case (absolute))', fontname='Times New Roman', fontsize=15)
-    else:
         cbar.set_label('Car volume: Difference to base case (%)', fontname='Times New Roman', fontsize=15)
+    else:
+        cbar.set_label('Car volume: Difference to base case (absolute)', fontname='Times New Roman', fontsize=15)
     
     if do_save:
         plt.savefig("results/difference_to_policies.png", bbox_inches='tight', dpi=600)
@@ -245,8 +300,16 @@ def plot_simulation_output(df, in_percentage: bool, target_zone: gpd.GeoDataFram
 
 # Example usage:
 # To use with hexagon overlay, provide the path to the scenario's hexagon JSON file
-plot_simulation_output(gdf_basecase_difference, in_percentage=plot_in_percentage, target_zone=zones.iloc[[zone]], 
+plot_simulation_output(gdf_difference, in_percentage=plot_in_percentage, target_zone=zones.iloc[[zone]], 
                       scenario_hexagon_file=scenario_hexagon_file, do_save=False,
                       gdf_basecase_mean=gdf_basecase_mean,
-                      gdf_model_output=gdf_model_output,
-                      gdf_with_capacity_reduction=gdf_with_capacity_reduction)
+                      gdf_model_output=gdf_scenario_mean,
+                      gdf_with_capacity_reduction=gdf_with_capacity_reduction,
+                      gdf_with_all_roadtypes_in_scenario=gdf_with_all_roadtypes_in_scenario)
+
+plot_simulation_output(gdf_difference, in_percentage=False, target_zone=zones.iloc[[zone]], 
+                      scenario_hexagon_file=scenario_hexagon_file, do_save=False,
+                      gdf_basecase_mean=gdf_basecase_mean,
+                      gdf_model_output=gdf_scenario_mean,
+                      gdf_with_capacity_reduction=gdf_with_capacity_reduction,
+                      gdf_with_all_roadtypes_in_scenario=gdf_with_all_roadtypes_in_scenario)

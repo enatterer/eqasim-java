@@ -22,8 +22,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import osmnx as ox
-import seaborn as sns
 from shapely import wkt
 from shapely.geometry import LineString, box
 import shapely.geometry as sgeo

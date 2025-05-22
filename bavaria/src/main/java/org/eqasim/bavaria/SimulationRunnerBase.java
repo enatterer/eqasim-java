@@ -82,7 +82,7 @@ public abstract class SimulationRunnerBase {
             String[] networkFileParts = networkFile.split("/");
             String fileName = networkFileParts[networkFileParts.length - 1];
             String[] fileNameParts = fileName.split("_");
-            String city = networkFileParts[networkFileParts.length - 4];
+            String city = fileNameParts[2];
             String primary = fileNameParts[3];
             String nValue = fileNameParts[4];
             String sValue = fileNameParts[5].replace(".xml.gz", "");
@@ -151,31 +151,17 @@ public abstract class SimulationRunnerBase {
 
     protected static Map<String, List<String>> getNetworkFiles(String city, String directoryPath) {
         File mainDirectory = new File(directoryPath);
-        File[] subDirs = mainDirectory.listFiles(File::isDirectory);
-
-        if (subDirs == null) {
-            System.out.println("The specified directory does not exist or is not a directory.");
-            return Map.of();
+        File[] filesList = mainDirectory.listFiles((dir, name) -> name.endsWith(".xml.gz"));
+        List<String> xmlGzFiles = new ArrayList<>();
+        if (filesList != null) {
+            for (File file : filesList) {
+                if (file.isFile()) {
+                    xmlGzFiles.add(file.getName());
+                }
+            }
+            Collections.sort(xmlGzFiles);
         }
-
-        return Arrays.stream(subDirs)
-                .collect(Collectors.toMap(
-                        File::getName,
-                        subDir -> {
-                            File[] filesList = subDir.listFiles((dir, name) -> name.endsWith(".xml.gz"));
-                            List<String> xmlGzFiles = new ArrayList<>();
-                            if (filesList != null) {
-                                for (File file : filesList) {
-                                    if (file.isFile()) {
-                                        xmlGzFiles.add(file.getName());
-                                    }
-                                }
-                                // Sort the list of file names
-                                Collections.sort(xmlGzFiles);
-                            }
-                            return xmlGzFiles;
-                        }
-                ));
+        return Map.of("main", xmlGzFiles);
     }
 
 
