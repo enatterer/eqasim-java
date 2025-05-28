@@ -6,15 +6,15 @@
 #SBATCH --output=simulation_rosenheim_output_job_id%j.log
 #SBATCH --error=simulation_rosenheim_error_job_id%j.log
 
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=20
-#SBATCH --cpus-per-task=2
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=15
+#SBATCH --cpus-per-task=3
 #SBATCH --mem=80GB
-#SBATCH --time=03:00:00
+#SBATCH --time=00:30:00
 
 # Account and partition
 #SBATCH --account=pn39mu
-#SBATCH --partition=micro
+#SBATCH --partition=test
 
 # Notification and type
 #SBATCH --mail-type=BEGIN,ERROR,END
@@ -32,13 +32,13 @@ export FC_FONT_PATH=$HOME/test_java_font_4u/fonts
 # Get scenario IDs (example: from filenames)
 city = "rosenheim"
 road_type = "primary"
-threads = 2 #should be less than or equal to the number of cpus per task
-memory = 4 #different from the node memory. (memory for each simulation times tasks per node should be less than node memory)
+threads = 3 #should be less than or equal to the number of cpus per task
+memory = 5.5 #different from the node memory. (memory for each simulation times tasks per node should be less than node memory)
 seed = 1
 hexagon_size = "500"
 mean_factor = 4
 std_factor = 8
-job_id = 6
+job_id = 1
 
 declare -A SCENARIOS
 for city in $cities; do    
@@ -61,7 +61,7 @@ for city in $cities; do
     for hexagon_size in $hexagon_sizes; do
         FILES=(${SCENARIOS["$city,$hexagon_size"]})
         for FILE in ${FILES[@]}; do #replace with ${FILES[@]} to run all scenarios, except it runs only for the first scenario
-            java -Xmx4g -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios \
+            java -Xmx$memory"g" -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios \
                 --city $city --road_type $road_type --scenario $scenario --threads $threads --memory $memory \
                 --seed $seed --hexagon_size $hexagon_size --mean_factor $mean_factor --std_factor $std_factor \
                 > output_${city}_${road_type}_s${scenario}_job_id${job_id}.log 2>&1 &

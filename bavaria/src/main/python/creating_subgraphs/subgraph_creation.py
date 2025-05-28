@@ -346,7 +346,7 @@ def process_one_scenario(args):
         networks_base, matsim_network_file_path, capacity_tuning_factor, label,
         betweenness_cutoff, closeness_cutoff
     ) = args
-    print(f"Processing scenario {label}",flush=True)
+    print(f"Processing scenario {label}",flush=False)
     import gzip, json, re
     import pandas as pd
     # Select edges for this road type and scenario (centrality, mode, road type)

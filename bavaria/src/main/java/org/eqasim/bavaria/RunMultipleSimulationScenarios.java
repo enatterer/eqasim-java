@@ -76,7 +76,10 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
             // Search through all network directories for the matching file
             for (Map.Entry<String, List<String>> entry : networkFilesMap.entrySet()) {
                 for (String file : entry.getValue()) {
-                    if (file.contains(config.road_type) && file.contains("_s" + config.scenario)) {
+                    if (
+                        file.contains(config.road_type) &&
+                        file.matches(".*_s" + config.scenario + "\\.xml\\.gz$")
+                    ) {
                         networkFile = file;
                         networkDir = entry.getKey();
                         // Extract n value
@@ -270,7 +273,7 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
         private static final Set<String> VALID_CITIES = new HashSet<>(Arrays.asList(
             "aschaffenburg", "augsburg", "bamberg", "bayreuth", 
             "erlangen", "landshut", "neuulm", "regensburg", "rosenheim",
-            "fuerth"
+            "fuerth", "muenchen","ingolstadt","kempten","nuernberg","schweinfurt","wuerzburg"
         ));
 
         private static final Set<String> VALID_ROAD_TYPES = new HashSet<>(Arrays.asList(
@@ -327,12 +330,12 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
             } else if (args[i].equals("--scenario") && i + 1 < args.length) {
                 try {
                     config.scenario = Integer.parseInt(args[i + 1]);
-                    if (config.scenario < 1 || config.scenario > 2500) {
-                        throw new NumberFormatException("Scenario must be between 1 and 2500");
+                    if (config.scenario < 1 || config.scenario > 40000) {
+                        throw new NumberFormatException("Scenario must be between 1 and 40000");
                     }
                     i++;
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid scenario. Please provide a positive integer between 1 and 2500.");
+                    throw new IllegalArgumentException("Invalid scenario. Please provide a positive integer between 1 and 40000.");
                 }
             } else if (args[i].equals("--threads") && i + 1 < args.length) {
                 try {

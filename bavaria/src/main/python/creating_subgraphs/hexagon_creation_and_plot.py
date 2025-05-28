@@ -359,7 +359,7 @@ def merge_edges_and_zones(gdf_csv, zones_gdf):
         GeoDataFrame with edges and their intersecting zones
     '''
     # Perform spatial join
-    gdf_edges_with_zones = gpd.sjoin(gdf_csv, zones_gdf, how='left', op='intersects')
+    gdf_edges_with_zones = gpd.sjoin(gdf_csv, zones_gdf, how='left', predicate='intersects')
     
     # Group by edge ID and aggregate attributes
     gdf_edges_with_zones = gdf_edges_with_zones.groupby('link').agg({
@@ -492,7 +492,7 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
 
     # Spatial join to assign each edge the hexagon(s) it falls into
     gdf_edges_with_hex = gpd.sjoin(gdf_edges_with_zones, hexagon_grid_all[['geometry', 'hex_zone_id', 'grid_id']], 
-                                how='left', op='intersects')
+                                how='left', predicate='intersects')
 
     # Group by edge 'link' and aggregate the hexagon IDs into a list
     gdf_edges_with_hex = gdf_edges_with_hex.groupby('link').agg({
