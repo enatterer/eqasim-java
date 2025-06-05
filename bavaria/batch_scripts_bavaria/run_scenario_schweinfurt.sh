@@ -3,7 +3,7 @@
 threads=1 #should match cpus-per-task
 memory=1 #should be less than or equal to --mem in srun in run_all_scenarios.sh
 
-SCENARIO_FILE=bavaria/data/scenario_text_files/schweinfurt/schweinfurt_seed1_hexagon_all.txt
+SCENARIO_FILE=bavaria/data/scenario_text_files/schweinfurt/schweinfurt_seed2_hexagon_all.txt
 mapfile -t scenarios < "$SCENARIO_FILE"
 i=$SLURM_PROCID
 
@@ -22,4 +22,5 @@ echo "[$(date)] Launching scenario $scenario_id on $(hostname) [task $i]" >> "$l
 java -Xmx"$memory"g -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios \
     --city "$city" --road_type "$road_type" --scenario "$scenario_id" --threads "$threads" --memory "$memory" \
     --seed "$seed" --hexagon_size "$hexagon_size" --mean_factor "$mean_factor" --std_factor "$std_factor" \
+    --output_dir "$SCRATCH" \
     > "$logfile" 2>&1 

@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH -J simulation_bamberg_job
-#SBATCH --output=simulation_bamberg_output_job_id%j.log
-#SBATCH --error=simulation_bamberg_error_job_id%j.log
+#SBATCH -J simulation_schweinfurt_job
+#SBATCH --output=simulation_schweinfurt_output_job_id%j.log
+#SBATCH --error=simulation_schweinfurt_error_job_id%j.log
 
-#SBATCH --nodes=16
+#SBATCH --nodes=13
 #SBATCH --ntasks-per-node=48
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=80GB
-#SBATCH --time=4:00:00
+#SBATCH --time=02:00:00
 
 #SBATCH --account=pn39mu
 #SBATCH --partition=micro
@@ -19,6 +19,7 @@
 
 # Setup environment
 export HOME=/dss/dsshome1/05/go69tef3
+export SCRATCH=/hppfs/scratch/05/go69tef3/bavaria_simulation_output
 export FONTCONFIG_PATH=$HOME/test_java_font_4u/fonts
 export FONTCONFIG_FILE=$HOME/test_java_font_4u/fonts/fonts.conf
 export FC_FONT_PATH=$HOME/test_java_font_4u/fonts

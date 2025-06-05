@@ -22,4 +22,5 @@ echo "[$(date)] Launching scenario $scenario_id on $(hostname) [task $i]" >> "$l
 java -Xmx"$memory"g -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunMultipleSimulationScenarios \
     --city "$city" --road_type "$road_type" --scenario "$scenario_id" --threads "$threads" --memory "$memory" \
     --seed "$seed" --hexagon_size "$hexagon_size" --mean_factor "$mean_factor" --std_factor "$std_factor" \
+    --output_dir "$SCRATCH" \
     > "$logfile" 2>&1 

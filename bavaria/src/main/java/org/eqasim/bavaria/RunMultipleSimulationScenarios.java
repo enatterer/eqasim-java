@@ -118,7 +118,8 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
             }
 
             // Construct output directory using road type, n value, and scenario number
-            final String outputDirectory = "bavaria/data/simulation_output/scenarios_new/" + config.city + "/"
+            String baseOutputDir = (config.outputDir != null) ? config.outputDir : "bavaria/data/simulation_output/scenarios_new";
+            final String outputDirectory = baseOutputDir + "/" + config.city + "/"
                 + config.city + "_hex_" + config.hexagon_size + "_seed_" + config.seed + "/"
                 + config.city + "_" + config.road_type + "_network_s" + config.scenario;
 
@@ -213,7 +214,8 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
                         config.city + "_seed_"+config.seed+"_hex"+config.hexagon_size+"_mean"+config.mean_factor+"_std"+config.std_factor+"/networks/" + networkDir + "/" + networkFile;
 
                     // Construct output directory using road type, n value, and scenario number
-                    final String outputDirectory = "bavaria/data/simulation_output/scenarios_new/" + config.city + "/"
+                    String baseOutputDir = (config.outputDir != null) ? config.outputDir : "bavaria/data/simulation_output/scenarios_new";
+                    final String outputDirectory = baseOutputDir + "/" + config.city + "/"
                         + config.city + "_hex_" + config.hexagon_size + "_seed_" + config.seed + "/"
                         + config.city + "_" + roadType + "_network_s" + scenarioNumber;
 
@@ -291,6 +293,7 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
         int hexagon_size = 500;
         int mean_factor = 4;
         int std_factor = 8;
+        String outputDir = null;
 
         @Override
         public String toString() {
@@ -397,6 +400,14 @@ public class RunMultipleSimulationScenarios extends SimulationRunnerBase {
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid standard deviation factor. Please provide a positive integer.");
                 }
+            } else if (args[i].equals("--output_dir") && i + 1 < args.length) {
+                try {
+                    config.outputDir = args[i + 1];
+                    i++;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid output directory. Please provide a valid directory path.");
+                }
+                i++;
             }
         }
 
