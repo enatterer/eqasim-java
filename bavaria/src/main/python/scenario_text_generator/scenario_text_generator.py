@@ -1,7 +1,7 @@
 from pathlib import Path
 
-cities = ["rosenheim","muenchen","schweinfurt","bamberg"]
-small_cities = ["rosenheim","schweinfurt","bamberg"]
+cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut"]
+small_cities = ["rosenheim","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut"]
 road_type = "primary"
 seed = 2
 hexagon_sizes = [500,1000,2000]
@@ -34,7 +34,7 @@ def save_to_one_text_file(filenames, output_dir):
 
 if __name__ == "__main__":
     filenames = {}
-    for city in ["schweinfurt"]:
+    for city in ["landshut"]:
         output_dir = base_dir / "bavaria" / "data" / "scenario_text_files"/f"{city}"
         for hexagon_size in hexagon_sizes:
             scenario_files = list(subgraph_folder_path.glob(f"{city}/{city}_seed_{seed}_hex{hexagon_size}_mean{mean_factor}_std{std_factor}/networks/network_seed{seed}_{city}_{road_type}_n*_s*.xml.gz"))
