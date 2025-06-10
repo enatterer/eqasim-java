@@ -1,6 +1,6 @@
 #!/bin/bash
 
-threads=1 #should match cpus-per-task
+threads=2 #should match cpus-per-task
 memory=2 #should be less than or equal to --mem in srun in run_all_scenarios.sh
 
 SCENARIO_FILE=bavaria/data/scenario_text_files/landshut/landshut_seed2_hexagon_all.txt

@@ -1,15 +1,15 @@
 #!/bin/bash
 
-#SBATCH -J simulation_kempten_job_array
-#SBATCH --output=simulation_kempten_output_job_id%j.log
-#SBATCH --error=simulation_kempten_error_job_id%j.log
+#SBATCH -J simulation_muenchen_job_array
+#SBATCH --output=simulation_muenchen_output_job_id%j.log
+#SBATCH --error=simulation_muenchen_error_job_id%j.log
 
-#SBATCH --nodes=16
-#SBATCH --ntasks-per-node=24
-#SBATCH --cpus-per-task=2
+#SBATCH --nodes=13
+#SBATCH --ntasks-per-node=8
+#SBATCH --cpus-per-task=6
 #SBATCH --mem=80GB
-#SBATCH --time=02:00:00
-#SBATCH --array=0-7
+#SBATCH --time=10:00:00
+#SBATCH --array=0
 
 #SBATCH --account=pn39mu
 #SBATCH --partition=micro
@@ -26,7 +26,7 @@ export FONTCONFIG_FILE=$HOME/test_java_font_4u/fonts/fonts.conf
 export FC_FONT_PATH=$HOME/test_java_font_4u/fonts
 export PATH=$HOME/java-21/bin:$PATH
 
-BLOCK_SIZE=384
+BLOCK_SIZE=104
 START_INDEX=$((SLURM_ARRAY_TASK_ID * BLOCK_SIZE))
 END_INDEX=$((START_INDEX + BLOCK_SIZE - 1))
 
@@ -35,4 +35,4 @@ export END_INDEX
 export BLOCK_SIZE
 
 # Launch one srun per task in the allocation (each will get a unique SLURM_PROCID)
-srun --mem=3GB bavaria/batch_scripts_bavaria/run_scenario_kempten.sh
+srun --mem=10GB bavaria/batch_scripts_bavaria/run_scenario_muenchen.sh 

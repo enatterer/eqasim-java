@@ -1,9 +1,9 @@
 #!/bin/bash
 
-threads=2 #should match cpus-per-task
-memory=2 #should be less than or equal to --mem in srun in run_all_scenarios.sh
+threads=6 #should match cpus-per-task
+memory=10 #should be less than or equal to --mem in srun in run_all_scenarios.sh
 
-SCENARIO_FILE=bavaria/data/scenario_text_files/fuerth/fuerth_seed2_hexagon_all.txt
+SCENARIO_FILE=bavaria/data/scenario_text_files/muenchen/muenchen_seed2_hexagon_sample100_2.txt
 mapfile -t scenarios < "$SCENARIO_FILE"
 i=$((START_INDEX + SLURM_PROCID))
 
