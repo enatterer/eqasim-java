@@ -1,9 +1,9 @@
 import math
 
-B = 100 #scenario count
+B = 200 #scenario count
 min_z = None #idle task count
 best_ys = [] #number of nodes
-tasks_per_node = 8
+tasks_per_node = 15
 low_bound = 1
 upper_bound = 16
 

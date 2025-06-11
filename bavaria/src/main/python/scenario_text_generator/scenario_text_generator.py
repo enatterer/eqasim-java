@@ -1,7 +1,7 @@
 from pathlib import Path
 import random
 
-cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg"]
+cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg"]
 small_cities = ["rosenheim","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg"]
 road_type = "primary"
 seed = 2
@@ -54,7 +54,7 @@ def save_random_sample_scenarios(filenames, output_dir, sample_size=100, n_sampl
 
 if __name__ == "__main__":
     filenames = {}
-    for city in ["muenchen"]:
+    for city in ["augsburg","nuernberg"]:
         output_dir = base_dir / "bavaria" / "data" / "scenario_text_files"/f"{city}"
         for hexagon_size in hexagon_sizes:
             scenario_files = list(subgraph_folder_path.glob(f"{city}/{city}_seed_{seed}_hex{hexagon_size}_mean{mean_factor}_std{std_factor}/networks/network_seed{seed}_{city}_{road_type}_n*_s*.xml.gz"))
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 text = f"{city} {road_type} {scenario} {seed} {hexagon_size} {mean_factor} {std_factor}"
                 scenario_text.append(text)
             filenames[hexagon_size] = scenario_text
-        save_random_sample_scenarios(filenames, output_dir, sample_size=100, n_samples=5)
+        save_random_sample_scenarios(filenames, output_dir, sample_size=200, n_samples=5)
         if city in small_cities:
             save_to_one_text_file(filenames, output_dir)
         else:

@@ -143,7 +143,7 @@ def convert_time_to_seconds(df, column_name):
     return df
 
 # Calculate average travel time, routed distance, and trip count per mode across all seeds
-def calculate_avg_mode_stats(single_mode_stats_list: list):
+'''def calculate_avg_mode_stats(single_mode_stats_list: list):
     mode_stats_list = []
 
     for df in single_mode_stats_list:
@@ -168,7 +168,29 @@ def calculate_avg_mode_stats(single_mode_stats_list: list):
     # Rename columns for clarity
     average_mode_stats.columns = ['mode', 'avg_travel_time_seconds', 'avg_routed_distance(routed)', 'average_trip_count']
     
-    return average_mode_stats
+    return average_mode_stats'''
+
+def calculate_mode_stats_for_each_seed(single_mode_stats_list: list):
+    mode_stats_list = []
+    for df in single_mode_stats_list:
+        mode_stats = df.groupby('mode').agg({
+            'travel_time': ['mean', 'count'],
+            'routed_distance': 'mean'
+        }).reset_index()
+        mode_stats.columns = ['mode', 'avg_travel_time', 'trip_count', 'avg_routed_distance']
+        mode_stats_list.append(mode_stats)
+    all_mode_stats = pd.concat(mode_stats_list, ignore_index=True)
+
+    # Calculate the average across all seeds
+    average_mode_stats = all_mode_stats.groupby('mode').agg({
+        'avg_travel_time': 'mean',
+        'avg_routed_distance': 'mean',
+        'trip_count': 'mean'
+    }).reset_index()
+    average_mode_stats.columns = ['mode', 'avg_total_travel_time', 'avg_total_routed_distance', 'avg_trip_count']
+    df_average_mode_stats = pd.DataFrame(average_mode_stats)
+    return df_average_mode_stats
+
 
 def create_basecase_trips_mean_file(city_name,df_basecase_trips):
     result_path_basecase_trips = base_dir / "data" / "basecases_mean" / city_name / f"{city_name}_basecase_average_trips.csv"

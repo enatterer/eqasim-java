@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH -J simulation_muenchen_job_array
-#SBATCH --output=simulation_muenchen_output_job_id%j.log
-#SBATCH --error=simulation_muenchen_error_job_id%j.log
+#SBATCH -J simulation_augsburg_job_array
+#SBATCH --output=simulation_augsburg_output_job_id%j.log
+#SBATCH --error=simulation_augsburg_error_job_id%j.log
 
 #SBATCH --nodes=13
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=80GB
-#SBATCH --time=10:00:00
+#SBATCH --time=24:00:00
 #SBATCH --array=0
 
 #SBATCH --account=pn39mu
@@ -35,4 +35,4 @@ export END_INDEX
 export BLOCK_SIZE
 
 # Launch one srun per task in the allocation (each will get a unique SLURM_PROCID)
-srun --mem=10GB bavaria/batch_scripts_bavaria/run_scenario_muenchen.sh 
+srun --mem=10GB bavaria/batch_scripts_bavaria/run_scenario_augsburg.sh 
