@@ -1,12 +1,12 @@
 from pathlib import Path
 import random
 
-cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg"]
-small_cities = ["rosenheim","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg"]
+cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg","neuulm"]
+small_cities = ["rosenheim","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg","neuulm"]
 road_type = "primary"
 seed = 2
 rand_seeds =1
-hexagon_sizes = [500,1000,2000]
+hexagon_sizes = [1000]
 mean_factor = 4
 std_factor = 8
 
@@ -34,7 +34,7 @@ def save_to_one_text_file(filenames, output_dir):
                 count += 1
     print(f"Saved {count} scenarios to {city}_seed{seed}_hexagon_all.txt")
 
-def save_random_sample_scenarios(filenames, output_dir, sample_size=100, n_samples=5):
+def save_random_sample_scenarios(city, filenames, output_dir, sample_size=100, n_samples=5):
     all_scenarios = []
     for scenario_list in filenames.values():
         all_scenarios.extend(scenario_list)
@@ -45,16 +45,31 @@ def save_random_sample_scenarios(filenames, output_dir, sample_size=100, n_sampl
         else:
             random.seed(rand_seeds + i)  # Use a different seed for each sample
             sample = random.sample(all_scenarios, sample_size)
-        output_path = Path(output_dir) / f"muenchen_seed{seed}_hexagon_sample{sample_size}_{i}.txt"
+        output_path = Path(output_dir) / f"{city}_seed{seed}_hexagon_sample{sample_size}_{i}.txt"
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
             for text in sample:
                 f.write(f"{text}\n")
-        print(f"Saved {len(sample)} random scenarios to muenchen_seed{seed}_hexagon_sample{sample_size}_{i}.txt")
+        print(f"Saved {len(sample)} random scenarios to {city}_seed{seed}_hexagon_sample{sample_size}_{i}.txt")
+        
+def split_scenarios_into_groups(city, filenames, output_dir, group_size=100):
+    all_scenarios = []
+    for scenario_list in filenames.values():
+        all_scenarios.extend(scenario_list)
+    counter = 1
+    for i in range(0, len(all_scenarios), group_size):
+        sample = all_scenarios[i:i+group_size]
+        output_path = Path(output_dir) / f"{city}_seed{seed}_hexagon_sample{group_size}_{counter}.txt"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            for text in sample:
+                f.write(f"{text}\n")
+        print(f"Saved {len(sample)} random scenarios to {city}_seed{seed}_hexagon_sample{group_size}_{counter}.txt")
+        counter += 1
 
 if __name__ == "__main__":
     filenames = {}
-    for city in ["augsburg","nuernberg"]:
+    for city in ["muenchen"]:
         output_dir = base_dir / "bavaria" / "data" / "scenario_text_files"/f"{city}"
         for hexagon_size in hexagon_sizes:
             scenario_files = list(subgraph_folder_path.glob(f"{city}/{city}_seed_{seed}_hex{hexagon_size}_mean{mean_factor}_std{std_factor}/networks/network_seed{seed}_{city}_{road_type}_n*_s*.xml.gz"))
@@ -65,8 +80,9 @@ if __name__ == "__main__":
                 text = f"{city} {road_type} {scenario} {seed} {hexagon_size} {mean_factor} {std_factor}"
                 scenario_text.append(text)
             filenames[hexagon_size] = scenario_text
-        save_random_sample_scenarios(filenames, output_dir, sample_size=200, n_samples=5)
-        if city in small_cities:
-            save_to_one_text_file(filenames, output_dir)
-        else:
-            save_to_different_text_file(filenames, output_dir)
+        #save_random_sample_scenarios(city, filenames, output_dir, sample_size=200, n_samples=5) #if you want to save random samples in smaller batches
+        split_scenarios_into_groups(city, filenames, output_dir, group_size=1219)
+        #if city in small_cities:
+        #    save_to_one_text_file(filenames, output_dir)
+        #else:
+        #    save_to_different_text_file(filenames, output_dir)

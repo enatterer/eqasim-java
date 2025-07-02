@@ -16,15 +16,6 @@ import shapely.wkt as wkt
 from shapely.geometry import Point, LineString, box
 from shapely.ops import nearest_points
 
-import matplotlib.pyplot as plt
-
-
-city_name = "rosenheim"
-
-base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-basecase_subdir_path = base_dir / "data" / "simulation_output" / "basecases_new" / city_name
-result_path_basecase_mean = base_dir / "data" / "basecases_mean"
-
 
 def create_dic_seed_to_output_links(subdir):
     result_dic = {}
@@ -170,7 +161,7 @@ def convert_time_to_seconds(df, column_name):
     
     return average_mode_stats'''
 
-def calculate_mode_stats_for_each_seed(single_mode_stats_list: list):
+def calculate_avg_mode_stats(single_mode_stats_list: list):
     mode_stats_list = []
     for df in single_mode_stats_list:
         mode_stats = df.groupby('mode').agg({
@@ -300,24 +291,33 @@ def plot_edge_metrics(gdf_basecase_mean):
     print(f"Number of simulation runs: {len(simulated_volumes)}")
     print(f"Standard deviation: {np.std(simulated_volumes):.2f}")
 
-random_seed_to_df_basecase_output_links = create_dic_seed_to_output_links(subdir=basecase_subdir_path)
-random_seed_to_df_basecase_trips = create_dic_seed_to_eqasim_trips_given_output_trips(subdir=basecase_subdir_path)
+if __name__ == "__main__":
+    city_name = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg","neuulm"]
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
+    for city in city_name:
+        basecase_subdir_path = base_dir / "data" / "simulation_output" / "basecases_new" / city
+        result_path_basecase_mean = base_dir / "data" / "basecases_mean" / city
+        result_path_basecase_trips = base_dir / "data" / "basecases_mean" / city / f"{city}_basecase_average_trips.csv"
 
 
-basecase_output_links_gdfs = list(random_seed_to_df_basecase_output_links.values())
-
-gdf_basecase_mean = compute_average_or_median_geodataframe(geodataframes=basecase_output_links_gdfs, column_name="vol_car", is_mean=True)
-gdf_basecase_mean = gdf_basecase_mean.rename(columns={"osm:way:highway": "highway"})
-create_basecase_output_links_mean_file(city_name=city_name,gdf_basecase_mean=gdf_basecase_mean)
-plot_basecase_mean_file(city_name=city_name)
-gdf_basecase_mean = calculate_edge_metrics(simulation_gdfs=basecase_output_links_gdfs, mean_gdf=gdf_basecase_mean)
-print_edge_metrics(gdf_basecase_mean)
-plot_edge_metrics(gdf_basecase_mean)
+        random_seed_to_df_basecase_output_links = create_dic_seed_to_output_links(subdir=basecase_subdir_path)
+        random_seed_to_df_basecase_trips = create_dic_seed_to_eqasim_trips_given_output_trips(subdir=basecase_subdir_path)
 
 
-basecase_trips_dfs = list(random_seed_to_df_basecase_trips.values())
-df_average_mode_stats = calculate_avg_mode_stats(basecase_trips_dfs)
-create_basecase_trips_mean_file(city_name=city_name,df_basecase_trips=df_average_mode_stats)
+        basecase_output_links_gdfs = list(random_seed_to_df_basecase_output_links.values())
+
+        gdf_basecase_mean = compute_average_or_median_geodataframe(geodataframes=basecase_output_links_gdfs, column_name="vol_car", is_mean=True)
+        gdf_basecase_mean = gdf_basecase_mean.rename(columns={"osm:way:highway": "highway"})
+        create_basecase_output_links_mean_file(city_name=city,gdf_basecase_mean=gdf_basecase_mean)
+        plot_basecase_mean_file(city_name=city)
+        gdf_basecase_mean = calculate_edge_metrics(simulation_gdfs=basecase_output_links_gdfs, mean_gdf=gdf_basecase_mean)
+        print_edge_metrics(gdf_basecase_mean)
+        #plot_edge_metrics(gdf_basecase_mean)
+
+
+        basecase_trips_dfs = list(random_seed_to_df_basecase_trips.values())
+        df_average_mode_stats = calculate_avg_mode_stats(basecase_trips_dfs)
+        create_basecase_trips_mean_file(city_name=city,df_basecase_trips=df_average_mode_stats)
 
 
 

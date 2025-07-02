@@ -3,7 +3,7 @@
 threads=3 #should match cpus-per-task
 memory=4 #should be less than or equal to --mem in srun in run_all_scenarios.sh
 
-SCENARIO_FILE=bavaria/data/scenario_text_files/nuernberg/nuernberg_seed2_hexagon_sample200_1.txt
+SCENARIO_FILE=bavaria/data/scenario_text_files/nuernberg/nuernberg_seed2_hexagon_sample4267_4267.txt
 mapfile -t scenarios < "$SCENARIO_FILE"
 i=$((START_INDEX + SLURM_PROCID))
 

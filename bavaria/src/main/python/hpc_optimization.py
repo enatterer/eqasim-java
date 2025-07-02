@@ -1,11 +1,11 @@
 import math
 
-B = 200 #scenario count
+B = 3000 #scenario count
 min_z = None #idle task count
 best_ys = [] #number of nodes
-tasks_per_node = 15
-low_bound = 1
-upper_bound = 16
+tasks_per_node = 8
+low_bound = 17
+upper_bound = 768
 
 for y in range(low_bound, upper_bound):
     group = tasks_per_node * y #block size (or total number of tasks per job)
