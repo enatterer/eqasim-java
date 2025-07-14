@@ -14,24 +14,17 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * With this class, we can run multiple simulations for a specified city using different random seeds. This class can be used for creating the ''base case''.
- * The class parses command line arguments to determine the city name and the number of seeds to use.
- * It sets up the configuration and working directory for the simulation, and creates a thread pool to run the simulations concurrently.
- * 
- * To call this class, use the following command:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg > output.log 2>&1 &
- * 
- * If you want to run multiple seeds, you can do so by adding the --seeds parameter, i.e.:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg --seeds 3 > output.log 2>&1 &
- * 
- * You can also specify the number of threads and memory allocation:
- * nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --city bamberg --seeds 3 --threads 12 --memory 60 > output.log 2>&1 &
- * Note that for the run on the SuperMUC NG login node, for testing purposes, we used 12 threads and 60GB of memory.
- * For the actual runs in the batch script, we used: ...
- * 
- * Remind that when making a change, we need to recompile the project first: mvn clean package -Pstandalone --projects bavaria --also-make -DskipTests=true 
- * 
- * TODO: Consider adding methodology for running all cities in one run. But it could be that we don't need this.
+ * Runs multiple MATSim simulations for Munich using different random seeds, supporting parallel execution and automated output management.
+ *
+ * The class parses command line arguments to configure the number of seeds, thread count, and memory allocation.
+ * It sets up the necessary directories for Munich, manages concurrent simulation runs using a thread pool, and ensures that output directories are prepared and cleaned as needed.
+ *
+ * Example usage:
+ *   nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds > output.log 2>&1 &
+ *   nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --seeds 3 --threads 12 --memory 60 > output.log 2>&1 &
+ *
+ * Note: After making changes to this class, recompile the project with:
+ *   mvn clean package -Pstandalone --projects bavaria --also-make -DskipTests=true
  */
 
 public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
@@ -51,8 +44,8 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
         LOGGER.info("Running simulation with configuration: " + config);
 
         // Configuration settings
-        String configPath = config.city + "_config.xml";
-        String workingDirectory = "bavaria/data/simulation_input/simulations_for_landkreis/" + config.city + "/";
+        String configPath = "munich_config.xml";
+        String workingDirectory = "bavaria/data/munich/";
 
         LOGGER.info("Starting simulation with the following settings:");
         LOGGER.info("Configuration file: " + configPath);
@@ -62,11 +55,11 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
         ExecutorService executor = Executors.newFixedThreadPool(config.threads);
         LOGGER.info("Created thread pool with " + config.threads + " threads");
 
-        final String networkFile = config.city + "_network.xml.gz";
+        final String networkFile =  "munich_network.xml.gz";
         LOGGER.info("Using network file: " + networkFile);
 
         final int currentSeed = config.numSeeds;
-        final String seedOutputDirectory = "bavaria/data/simulation_output/basecases/" + config.city + "/" + config.city + "_seed_" + currentSeed + "/";
+        final String seedOutputDirectory = "bavaria/data/munich/output/seed_" + currentSeed + "/";
         LOGGER.info("Output for seed " + currentSeed + " will be written to: " + seedOutputDirectory);
 
         // Check if the output file exists for the current seed
@@ -90,8 +83,9 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
                         runSimulation(configPath, networkFile, seedOutputDirectory, workingDirectory, args, currentSeed, 
                             config.threads, config.threads, config.memory, true);
                         LOGGER.info("Completed simulation for: " + networkFile + " with seed " + currentSeed);
-                        deleteUnwantedFiles(seedOutputDirectory);
-                        LOGGER.info("Deleted unwanted files for: " + networkFile + " with seed " + currentSeed);
+                        // If you want to keep only the three files output_links.csv.gz, output_events.xml.gz, and eqasim_trips.csv (for memory reasons), uncomment the following line.
+                        // deleteUnwantedFiles(seedOutputDirectory);
+                        // LOGGER.info("Deleted unwanted files for: " + networkFile + " with seed " + currentSeed);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         LOGGER.log(Level.SEVERE, "Simulation interrupted for: " + networkFile + " with seed " + currentSeed, e);
@@ -129,7 +123,7 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
      */
     private static void printUsage() {
         LOGGER.severe("Usage: java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds " +
-                     "--city <city_name> [--seeds <number_of_seeds>] [--threads <number_of_threads>] " +
+                     "[--seeds <number_of_seeds>] [--threads <number_of_threads>] " +
                      "[--memory <memory_in_GB>]");
     }
 
@@ -137,21 +131,14 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
      * Configuration class to hold all simulation parameters
      */
     private static class Config {
-        private static final Set<String> VALID_CITIES = new HashSet<>(Arrays.asList(
-            "aschaffenburg", "augsburg", "bamberg", "bayreuth", 
-            "erlangen", "landshut", "muenchen", "nuernberg", "regensburg", "rosenheim",
-            "fuerth", "wuerzburg"
-        ));
-
-        String city = null;
-        int numSeeds = 1;  // Default to 1 seed
+        int numSeeds = 3;  // Default to 3 seeds
         int threads = 12;   // Default to 12 threads
         int memory = 120;   // Default to 60GB
 
         @Override
         public String toString() {
-            return String.format("Config{city='%s', numSeeds=%d, threads=%d, memory=%dGB}", 
-                city, numSeeds, threads, memory);
+            return String.format("Config{numSeeds=%d, threads=%d, memory=%dGB}", 
+                numSeeds, threads, memory);
         }
     }
 
@@ -165,10 +152,7 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
         Config config = new Config();
     
         for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--city") && i + 1 < args.length) {
-                config.city = args[i + 1];
-                i++; // Skip the next argument
-            } else if (args[i].equals("--seeds") && i + 1 < args.length) {
+            if (args[i].equals("--seeds") && i + 1 < args.length) {
                 try {
                     config.numSeeds = Integer.parseInt(args[i + 1]);
                     if (config.numSeeds < 1) {
@@ -200,12 +184,6 @@ public class RunSimulationsMultipleSeeds extends SimulationRunnerBase {
                 }
             } 
         }
-
-        // Validate required parameters
-        if (config.city == null) {
-            throw new IllegalArgumentException("Please provide the city name using the --city parameter");
-        }
-
         return config;
     }
 }

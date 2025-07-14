@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * This is the base class for running simulations. It contains the common methods for running simulations.
+ * This class contains helper functions for running simulations.
  */
 public abstract class SimulationRunnerBase {
     protected static final Logger LOGGER = Logger.getLogger(SimulationRunnerBase.class.getName());
@@ -34,7 +34,7 @@ public abstract class SimulationRunnerBase {
     }
 
    /**
-     * Runs the MATSim simulation with the given configuration path and output directory. This is the main method, it can be called with different random seeds as for the base case, or for the scenarios. 
+     * Runs the MATSim simulation with the given configuration path and output directory. This is the main method, calling the class "RunSimulation". It can be called with different random seeds as for the base case, or for the scenarios. 
      *
      * @param configPath      The path to the configuration file.
      * @param networkFile     The network file to use for the simulation.
@@ -59,7 +59,7 @@ public abstract class SimulationRunnerBase {
             "-Xmx" + String.valueOf(memoryAllocation) + "g", 
             "-cp",
             "bavaria/target/bavaria-1.5.0.jar",
-            "org.eqasim.bavaria.RunSimulation10pct",
+            "org.eqasim.bavaria.RunSimulation",
             "--config:global.numberOfThreads", String.valueOf(numberOfThreads),
             "--config:qsim.numberOfThreads", String.valueOf(numberOfThreadsQSim),
             "--config:global.randomSeed", String.valueOf(randomSeed),
