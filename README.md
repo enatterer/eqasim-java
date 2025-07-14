@@ -45,10 +45,10 @@ This creates your own branch based on `development-minga-matsim` and sets up tra
 
 ### 3️⃣ Prepare the `data` Folder
 
-In the `bavaria` module, create a `data` folder and copy your synthetic population and network files there:
+In the `bavaria` module, create a `data` folder, containing the folder `munich` and copy your synthetic population and network files there:
 
 ```bash
-mkdir -p bavaria/data
+mkdir -p bavaria/data/munich
 ```
 
 Copy into this folder:
