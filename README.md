@@ -45,10 +45,10 @@ This creates your own branch based on `development-minga-matsim` and sets up tra
 
 ### 3️⃣ Prepare the `data` Folder
 
-In the `bavaria` module, create a `data` folder and copy your synthetic population and network files there:
+In the `bavaria` module, create a `data` folder, containing the folder `munich` and copy your synthetic population and network files there:
 
 ```bash
-mkdir -p bavaria/data
+mkdir -p bavaria/data/munich
 ```
 
 Copy into this folder:
@@ -61,11 +61,24 @@ Copy into this folder:
 
 ### 4️⃣ Run the Simulation
 
-Run the simulation using:
+First, build the project:
+```bash
+mvn clean package -Pstandalone --projects bavaria --also-make -DskipTests=true
+```
+
+This will generate a `bavaria-1.5.0.jar` file in the `bavaria/target` directory.
+
+To run a single simulation, use:
 
 ```bash
-java -Xmx14G -cp munich_run.jar org.eqasim.bavaria.RunSimulation --config-path munich_config.xml
+java -Xmx14G -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulation --config-path munich_config.xml
 ```
+
+If you want to run simulations for multiple random seeds, use the `RunSimulationsMultipleSeeds`, where you can specify the number of seeds, threads, and memory:
+```bash
+nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --seeds 3 --threads 12 --memory 60 > output.log 2>&1 &
+``` 
+
 
 This command works for all downsampled population sizes.  
 There’s no need to change the command based on population size — just ensure the corresponding population file is correctly referenced in the config.
