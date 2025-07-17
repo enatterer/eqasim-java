@@ -50,12 +50,7 @@ In the `bavaria` module, create a `data` folder, containing the folder `munich` 
 ```bash
 mkdir -p bavaria/data/munich
 ```
-
-Copy into this folder:
-
-- The `population.xml` and related files  
-- The `network.xml`  
-- Any additional required inputs from the population step
+Copy into this folder all files created in the synthetic population, such as the config, network file, etc. 
 
 ---
 
@@ -71,14 +66,14 @@ This will generate a `bavaria-1.5.0.jar` file in the `bavaria/target` directory.
 To run a single simulation, use:
 
 ```bash
-java -Xmx14G -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulation --config-path munich_config.xml
+nohup java -Xmx12G -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulation --config-path bavaria/data/munich_0.1/munich_config.xml &> simulation_output.log &
 ```
+If you are running the simulation on a cluster or machine with larger memory resources, consider increasing the Java heap space, e.g., by setting -Xmx120G.
 
 If you want to run simulations for multiple random seeds, use the `RunSimulationsMultipleSeeds`, where you can specify the number of seeds, threads, and memory:
 ```bash
 nohup java -cp bavaria/target/bavaria-1.5.0.jar org.eqasim.bavaria.RunSimulationsMultipleSeeds --seeds 3 --threads 12 --memory 60 > output.log 2>&1 &
 ``` 
-
 
 This command works for all downsampled population sizes.  
 There’s no need to change the command based on population size — just ensure the corresponding population file is correctly referenced in the config.
