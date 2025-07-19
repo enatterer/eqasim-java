@@ -16,7 +16,7 @@ data/
 │       ├── <city_name>.json
 │
 ├── simulation_input/
-│   └── simulations_for_landkreis/
+│   └── simulations_per_city/
 │       └── <city_name>/
 │           ├── <city_name>_network.xml.gz
 │
@@ -404,13 +404,24 @@ def process_one_scenario(args):
     # Modify only the capacity of the specified links
     for link_id, from_node, to_node in links_to_modify:
         pattern = (
-            rf'(<link[^>]*\\bid="{link_id}"[^>]*\\bfrom="{from_node}"[^>]*\\bto="{to_node}"[^>]*capacity=")([^"]+)(")'
+            rf'(<link[^>]*\bid="{link_id}"[^>]*\bfrom="{from_node}"[^>]*\bto="{to_node}"[^>]*capacity=")([^"]+)(")'
         )
         def replace_capacity(match):
             original = float(match.group(2))
             new_capacity = original * capacity_tuning_factor
+            print(f"  Modifying link {link_id}: {original} -> {new_capacity}")
             return f'{match.group(1)}{new_capacity}{match.group(3)}'
+        
+        # Count matches and apply replacement
+        matches_before = len(re.findall(pattern, xml_str))
         xml_str = re.sub(pattern, replace_capacity, xml_str)
+        
+        if matches_before == 0:
+            print(f"  WARNING: No matches found for link {link_id}")
+        elif matches_before > 1:
+            print(f"  WARNING: Multiple matches ({matches_before}) found for link {link_id}")
+    
+    print(f"✅ Processed {len(links_to_modify)} links for capacity modification in scenario {label}")
     # Write the modified XML to a new gzipped file
     network_filename = f"network_seed{seed_number}_{label}.xml.gz"
     network_path = networks_base / network_filename
@@ -779,14 +790,14 @@ def main():
         )   
         
         #cross check the created networks
-        #edges_with_road_type, edges_in_hexagons, capacity_changes = cross_check_for_created_networks(
-        #    check_output_subgraph_path=first_scenario,
-        #    gdf_edges_with_hex=gdf_edges_with_hex,
-        #    road_type_subsets=road_type_subsets,
-        #    scenario_labels=scenario_labels,
-        #    seed_number=args.seed_number,
-        #    output_dirs=output_dirs
-        #)  
+        edges_with_road_type, edges_in_hexagons, capacity_changes = cross_check_for_created_networks(
+            check_output_subgraph_path=first_scenario,
+            gdf_edges_with_hex=gdf_edges_with_hex,
+            road_type_subsets=road_type_subsets,
+            scenario_labels=scenario_labels,
+            seed_number=args.seed_number,
+            output_dirs=output_dirs
+        )  
         
         #print("\nDetailed Cross-Check Results:")
         #print("\nEdges with matching road type:")
