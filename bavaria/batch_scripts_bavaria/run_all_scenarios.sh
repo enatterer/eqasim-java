@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH -J simulation_muenchen_job_array
-#SBATCH --output=simulation_muenchen_output_job_id%j.log
-#SBATCH --error=simulation_muenchen_error_job_id%j.log
+#SBATCH -J simulation_augsburg_job_array
+#SBATCH --output=simulation_augsburg_output_job_id%j.log
+#SBATCH --error=simulation_augsburg_error_job_id%j.log
 
-#SBATCH --nodes=94
-#SBATCH --ntasks-per-node=13
+#SBATCH --nodes=159
+#SBATCH --ntasks-per-node=16
 #SBATCH --cpus-per-task=3
 #SBATCH --mem=80GB
-#SBATCH --time=24:00:00
+#SBATCH --time=2:00:00
 #SBATCH --array=0
 
 #SBATCH --account=pn39mu
@@ -26,7 +26,7 @@ export FONTCONFIG_FILE=$HOME/test_java_font_4u/fonts/fonts.conf
 export FC_FONT_PATH=$HOME/test_java_font_4u/fonts
 export PATH=$HOME/java-21/bin:$PATH
 
-BLOCK_SIZE=1222
+BLOCK_SIZE=2544
 START_INDEX=$((SLURM_ARRAY_TASK_ID * BLOCK_SIZE))
 END_INDEX=$((START_INDEX + BLOCK_SIZE - 1))
 
@@ -35,4 +35,4 @@ export END_INDEX
 export BLOCK_SIZE
 
 # Launch one srun per task in the allocation (each will get a unique SLURM_PROCID)
-srun --mem=6GB bavaria/batch_scripts_bavaria/run_scenario_muenchen.sh 
+srun --mem=5GB bavaria/batch_scripts_bavaria/run_scenario_augsburg.sh  

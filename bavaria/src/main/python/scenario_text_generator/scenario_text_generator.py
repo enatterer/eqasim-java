@@ -2,10 +2,10 @@ from pathlib import Path
 import random
 
 cities = ["rosenheim","muenchen","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg","neuulm"]
-small_cities = ["rosenheim","schweinfurt","bamberg","aschaffenburg","erlangen","kempten","fuerth","landshut","bayreuth","ingolstadt","regensburg","wuerzburg","augsburg","nuernberg","neuulm"]
+small_cities = ["rosenheim","schweinfurt","aschaffenburg","kempten","fuerth",'landshut','erlangen','bayreuth','ingolstadt','bamberg','regensburg','wuerzburg']
 road_type = "primary"
-seed = 2
-rand_seeds =1
+seed = 3
+rand_seeds =13
 hexagon_sizes = [1000]
 mean_factor = 4
 std_factor = 8
@@ -69,7 +69,7 @@ def split_scenarios_into_groups(city, filenames, output_dir, group_size=100):
 
 if __name__ == "__main__":
     filenames = {}
-    for city in ["muenchen"]:
+    for city in ['muenchen','augsburg','nuernberg','neuulm']:
         output_dir = base_dir / "bavaria" / "data" / "scenario_text_files"/f"{city}"
         for hexagon_size in hexagon_sizes:
             scenario_files = list(subgraph_folder_path.glob(f"{city}/{city}_seed_{seed}_hex{hexagon_size}_mean{mean_factor}_std{std_factor}/networks/network_seed{seed}_{city}_{road_type}_n*_s*.xml.gz"))
@@ -81,8 +81,8 @@ if __name__ == "__main__":
                 scenario_text.append(text)
             filenames[hexagon_size] = scenario_text
         #save_random_sample_scenarios(city, filenames, output_dir, sample_size=200, n_samples=5) #if you want to save random samples in smaller batches
-        split_scenarios_into_groups(city, filenames, output_dir, group_size=1219)
+        split_scenarios_into_groups(city, filenames, output_dir, group_size=3000)
         #if city in small_cities:
         #    save_to_one_text_file(filenames, output_dir)
         #else:
-        #    save_to_different_text_file(filenames, output_dir)
+        #save_to_different_text_file(filenames, output_dir)

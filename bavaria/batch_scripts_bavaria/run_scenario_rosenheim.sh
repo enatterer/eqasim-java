@@ -1,9 +1,9 @@
 #!/bin/bash
 
 threads=3 #should match cpus-per-task
-memory=2 #should be less than or equal to --mem in srun in run_all_scenarios.sh
+memory=3 #should be less than or equal to --mem in srun in run_all_scenarios.sh
 
-SCENARIO_FILE=bavaria/data/scenario_text_files/rosenheim/rosenheim_seed1_hexagon_all.txt
+SCENARIO_FILE=bavaria/data/scenario_text_files/rosenheim/rosenheim_seed3_hexagon_all.txt
 mapfile -t scenarios < "$SCENARIO_FILE"
 i=$SLURM_PROCID
 if [ $i -ge ${#scenarios[@]} ]; then

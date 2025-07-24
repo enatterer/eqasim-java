@@ -22,11 +22,11 @@ from shapely.ops import unary_union
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-city_name = "rosenheim"
+city_name = "erlangen"
 hex_size = 500
-seed_number = 2
+seed_number = 3
 road_type = "primary"
-scenario_number = 2
+scenario_number = 283
 mean = 4
 std =8
 

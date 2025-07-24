@@ -4,7 +4,7 @@ base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
 # specify the following parameters
 mean_factor = 4
 std_factor = 8
-seed_number = 2
+seed_number = 3
 hexagon_sizes = [500, 1000, 2000]
 
 

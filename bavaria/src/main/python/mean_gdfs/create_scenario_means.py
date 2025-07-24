@@ -19,14 +19,14 @@ from shapely.ops import nearest_points
 import matplotlib.pyplot as plt
 
 
-city_name = "rosenheim"
+city_name = "erlangen"
 hex_size = 500
-seed_number = 2
+seed_number = 3
 road_type = "primary"
-scenario_number = 2
+scenario_number = 283
 
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-scenario_subdir_path = base_dir / "data" / "simulation_output" / "scenarios_new" / city_name / f"{city_name}_hex_{hex_size}_seed_{seed_number}/{city_name}_{road_type}_network_s{scenario_number}/"
+scenario_subdir_path = base_dir / "data" / "simulation_output" / "scenarios_new" / f"{city_name}_{road_type}_network_s{scenario_number}"
 result_path_difference = base_dir / "data" / "difference_mean"
 
 def create_dic_seed_to_output_links(subdir):
