@@ -1,5 +1,6 @@
 '''
 This file contains the functions for creating the hexagon grid and plotting the network for a given city
+The CRS used throughout is EPSG:25832 for Germany. For other countries, please adjust accordingly.
 '''
 
 # Standard library imports
@@ -37,21 +38,18 @@ import geopandas as gpd
 
 def matsim_network_input_to_gdf(network_file):
     """
-    Convert MATSim network XML to GeoDataFrame using network_io and extract network attributes
+    Convert MATSim network XML to GeoDataFrame and extract network attributes.
     
-    Parameters:
-    -----------
-    network_file : str or Path
-        Path to the MATSim network XML file
+    Args:
+        network_file (str or Path): Path to the MATSim network XML file
         
     Returns:
-    --------
-    tuple : (GeoDataFrame, nodes_dict, df_edges, network_attrs, link_attrs)
-        - GeoDataFrame containing the network edges
-        - Dictionary of node coordinates
-        - DataFrame of edges
-        - Dictionary of network attributes (e.g. coordinateReferenceSystem, capperiod, etc.)
-        - Dictionary of link-level attributes keyed by link id, where each value is a dictionary of attributes
+        tuple: (gdf, nodes_dict, df_edges, network_attrs, link_attrs)
+               - gdf: GeoDataFrame containing network edges in EPSG:25832
+               - nodes_dict: Dictionary of node coordinates
+               - df_edges: DataFrame of edges from network_io
+               - network_attrs: Network-level attributes (CRS, capacity period, etc.)
+               - link_attrs: Link-level attributes keyed by link ID
     """
     # Parse nodes and edges using nio (assumed to be imported and available)
     nodes_dict = nio.parse_nodes(network_file)
@@ -101,17 +99,20 @@ def matsim_network_input_to_gdf(network_file):
 
 def clean_duplicates_based_on_modes(file_path):
     """
-    Cleans the network by:
-    1. First removing full duplicates (same from_node, to_node, geometry, modes)
-    2. For remaining duplicates with same node pairs but different modes:
-       - Keep the entry with modes that contain both "car" and "car_passenger"
-       - If multiple or none meet this criteria, keep the one with the longest modes string
+    Remove duplicate network edges using hierarchical criteria.
     
-    Args: 
-        file_path: Path to the CSV file
+    Process:
+    1. Remove full duplicates (same nodes, geometry, modes) - keep highest vol_car
+    2. For remaining node-pair duplicates:
+       - Prefer edges with both 'car' and 'car_passenger' modes
+       - Otherwise select by longest modes string
+       - Use vol_car as tiebreaker
+    
+    Args:
+        file_path (str): Path to the CSV file containing network data
         
     Returns:
-        The cleaned DataFrame   
+        DataFrame: Cleaned network without duplicates or self-loops
     """
     # Load the CSV file
     print(f"Loading file: {file_path}")
@@ -251,12 +252,17 @@ def clean_duplicates_based_on_modes(file_path):
     return df_final
 
 def create_nodes_dict(cleaned_network):
-    '''
-    This function creates a dictionary of nodes and their coordinates from a cleaned network.
-    For each edge:
-    - from_node gets the coordinates of the start point of the LineString
-    - to_node gets the coordinates of the end point of the LineString
-    '''
+    """
+    Create node coordinate dictionary from network edges.
+    
+    Extracts node coordinates from LineString start/end points.
+    
+    Args:
+        cleaned_network (DataFrame): Network with geometry column containing LineStrings
+        
+    Returns:
+        dict: Node ID to (x, y) coordinate mapping
+    """
     nodes_dict = {}
     for index, row in cleaned_network.iterrows():
         # Get the coordinates of the start and end points of the LineString
@@ -269,9 +275,17 @@ def create_nodes_dict(cleaned_network):
     return nodes_dict
 
 def read_compressed_network_csv(csv_filepath, csv_output_path, crs='EPSG:25832'):
-    '''
-    This function reads a compressed CSV file containing network data and converts it to a GeoDataFrame
-    '''
+    """
+    Read and decompress network CSV file to GeoDataFrame.
+    
+    Args:
+        csv_filepath (str): Path to compressed CSV file
+        csv_output_path (str): Path for decompressed output
+        crs (str, optional): Coordinate reference system. Defaults to 'EPSG:25832'
+        
+    Returns:
+        GeoDataFrame: Network data with geometry column from WKT strings
+    """
     print("Unzipping file...")
     with gzip.open(csv_filepath, 'rb') as f_in:
         with open(csv_output_path, 'wb') as f_out:
@@ -289,9 +303,22 @@ def read_compressed_network_csv(csv_filepath, csv_output_path, crs='EPSG:25832')
     return gdf_csv
     
 def consolidate_road_types(highway_type):
-    '''
-    This function consolidates road types into broader categories
-    '''
+    """
+    Consolidate OSM highway types into broader road categories.
+    
+    Maps detailed OSM highway types to simplified categories:
+    - primary: motorway, trunk, primary (and their links)
+    - secondary: secondary (and links)
+    - tertiary: tertiary (and links)
+    - residential: residential
+    - other: pedestrian, service, cycleway, etc.
+    
+    Args:
+        highway_type (str): OSM highway type
+        
+    Returns:
+        str: Consolidated road type category or None if input is None
+    """
     if highway_type is None:
         return None
 
@@ -323,12 +350,21 @@ def consolidate_road_types(highway_type):
 
 
 def modify_geodataframe(gdf):
-    '''
-    This function modifies the zones geodataframe to ensure it is in the correct CRS 
-    and has the correct columns. 
-    Also it applies the 'multipolygon_to_polygon' function to all the geometries in the geodataframe so that 
-    the geometries are all Polygons and not MultiPolygons.
-    '''
+    """
+    Standardize zone GeoDataFrame for spatial analysis.
+    
+    Operations:
+    - Convert MultiPolygons to largest Polygon
+    - Calculate area and perimeter
+    - Add sequential zone IDs
+    - Ensure EPSG:25832 CRS
+    
+    Args:
+        gdf (GeoDataFrame): Zone boundaries in any CRS
+        
+    Returns:
+        GeoDataFrame: Standardized zones with zone_id, area, perimeter columns
+    """
     if (gdf.geometry.apply(lambda x: x.geom_type == "MultiPolygon")).any():
         gdf["geometry"] = gdf.geometry.apply(multipolygon_to_polygon)
     gdf["area"] = gdf.geometry.area
@@ -342,22 +378,29 @@ def modify_geodataframe(gdf):
 
 
 def multipolygon_to_polygon(geom):
-    '''
-    This function converts a MultiPolygon to a Polygon with the largest connected area.
-    A MultiPolygon with 2 Polygons inside will return the Polygon with the largest area.(z.B. Stadt Bamberg had 2 disconnected polygons, we only consider the largest one)
-    '''
+    """
+    Convert MultiPolygon to largest constituent Polygon.
+    
+    Args:
+        geom (MultiPolygon): Input multipolygon geometry
+        
+    Returns:
+        Polygon: Largest polygon by area from the multipolygon
+    """
     return max(geom.geoms, key=lambda p: p.area)
 
 
 def merge_edges_and_zones(gdf_csv, zones_gdf):
-    '''
-    This function merges network edges with zones using spatial join.
-    input:
-        gdf_csv: GeoDataFrame containing network edges with your specific columns
-        zones_gdf: GeoDataFrame containing zone polygons
-    output:
-        GeoDataFrame with edges and their intersecting zones
-    '''
+    """
+    Assign network edges to intersecting zones using spatial join.
+    
+    Args:
+        gdf_csv (GeoDataFrame): Network edges with link attributes
+        zones_gdf (GeoDataFrame): Zone polygons with zone_id column
+        
+    Returns:
+        GeoDataFrame: Network edges with zone_id list for intersecting zones
+    """
     # Perform spatial join
     gdf_edges_with_zones = gpd.sjoin(gdf_csv, zones_gdf, how='left', predicate='intersects')
     
@@ -392,15 +435,19 @@ def merge_edges_and_zones(gdf_csv, zones_gdf):
 
 
 def generate_hexagon_grid(polygon, hexagon_size, projection='EPSG:25832'):
-    '''
-    This function generates a hexagonal grid that fits within a given polygon
-    input:
-        polygon: Polygon to clip the grid to
-        hexagon_size: Distance from the hexagon's center to any vertex
-        projection: Coordinate reference system for the polygon and grid
-    output:
-        GeoDataFrame with hexagons clipped to the input polygon
-    '''
+    """
+    Generate hexagonal grid covering a polygon boundary.
+    
+    Creates a honeycomb pattern of hexagons that covers the given area.
+    
+    Args:
+        polygon (Polygon): Boundary polygon for grid extent
+        hexagon_size (float): Distance from hexagon center to vertex
+        projection (str, optional): CRS for grid. Defaults to 'EPSG:25832'
+        
+    Returns:
+        GeoDataFrame: Hexagon grid with grid_id column, clipped to polygon
+    """
     # Create a GeoDataFrame from the input polygon using the given projection.
     poly_gdf = gpd.GeoDataFrame({'geometry': [polygon]}, crs=projection)
     
@@ -456,18 +503,24 @@ def generate_hexagon_grid(polygon, hexagon_size, projection='EPSG:25832'):
 
 
 def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones, 
-                                        projection='EPSG:25832'):
-    '''
-    This function generates a hexagon grid for each zone and assigns each edge to the hexagon(s) 
-    it falls into
-    input:
-        zones_gdf: GeoDataFrame containing zone polygons
-        hexagon_size: Distance from the hexagon's center to any vertex
-        gdf_edges_with_zones: GeoDataFrame containing network edges with their intersecting zones
-        projection: Coordinate reference system for the polygon and grid
-    output:
-        GeoDataFrame with hexagons clipped to the input polygon
-    '''
+                                projection='EPSG:25832'):
+    """
+    Create hexagon grid and assign edges to intersecting hexagons.
+    
+    Generates continuous hexagon grid for zone 1, then spatially joins
+    network edges to determine which hexagons they intersect.
+    
+    Args:
+        zones_gdf (GeoDataFrame): Zone boundaries (zone 1 used for grid extent)
+        hexagon_size (float): Distance from hexagon center to vertex
+        gdf_edges_with_zones (GeoDataFrame): Network edges with zone assignments
+        projection (str, optional): CRS for grid. Defaults to 'EPSG:25832'
+        
+    Returns:
+        tuple: (gdf_edges_with_hex, hexagon_grid_all)
+               - gdf_edges_with_hex: Edges with hexagon ID lists and is_in_stadt flag
+               - hexagon_grid_all: Complete hexagon grid with zone intersections
+    """
     # Get the boundary of zone_id 1
     zone_1_boundary = zones_gdf[zones_gdf['zone_id'] == 1].geometry.values[0]
 
@@ -538,12 +591,16 @@ def merge_edges_and_hexagon_grid(zones_gdf, hexagon_size, gdf_edges_with_zones,
     return gdf_edges_with_hex, hexagon_grid_all
 
 def check_hexagon_statistics(gdf_edges_with_hex, hexagon_grid_all):
-    '''
-    This function checks the statistics of the hexagon grid
-    input:
-        gdf_edges_with_hex: GeoDataFrame containing network edges with their intersecting hexagons
-        hexagon_grid_all: GeoDataFrame containing all hexagons
-    '''
+    """
+    Print hexagon grid statistics and edge distribution.
+    
+    Args:
+        gdf_edges_with_hex (GeoDataFrame): Network edges with hexagon assignments
+        hexagon_grid_all (GeoDataFrame): Complete hexagon grid
+        
+    Prints:
+        Number of hexagons containing edges vs total hexagons created
+    """
     unique_values = set(item for sublist in gdf_edges_with_hex['hexagon'] for item in sublist)
     print(unique_values)
     print('Number of Hexagons containing edges: ', len (unique_values))
@@ -551,14 +608,14 @@ def check_hexagon_statistics(gdf_edges_with_hex, hexagon_grid_all):
     
 def plot_hexagon_grid_with_ids(hexagon_grid_all, output_path):
     """
-    Create a plot of the hexagon grid with hexagon IDs labeled in the center of each hexagon.
+    Create plot of hexagon grid with ID labels at hexagon centers.
     
-    Parameters:
-    -----------
-    hexagon_grid_all : GeoDataFrame
-        GeoDataFrame containing the hexagon grid
-    output_path : Path
-        Path where to save the plot
+    Args:
+        hexagon_grid_all (GeoDataFrame): Hexagon grid with grid_id column
+        output_path (Path): Output path for saved plot image
+        
+    Saves:
+        PNG plot with hexagon boundaries and ID labels
     """
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(20, 20))
@@ -590,15 +647,24 @@ def plot_hexagon_grid_with_ids(hexagon_grid_all, output_path):
     print(f"Hexagon grid plot with IDs saved to: {output_path}")
     plt.close()
 def plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all, zones_gdf, output_dirs,city_name):
-    '''
-    This function plots and saves the network with the hexagon grid and zones
-    input:
-        gdf_edges_with_hex: GeoDataFrame containing network edges with their intersecting hexagons
-        hexagon_grid_all: GeoDataFrame containing all hexagons
-        zones_gdf: GeoDataFrame containing zones    
-        output_dirs: Dictionary containing output directory paths
-        city_name: Name of the city
-    '''
+    """
+    Create comprehensive visualization of network, hexagons, and zones.
+    
+    Color codes edges by zone membership:
+    - Blue: Zone 1 only
+    - Gray: Zone 2 only  
+    - Green: Both zones
+    
+    Args:
+        gdf_edges_with_hex (GeoDataFrame): Network edges with zone/hexagon data
+        hexagon_grid_all (GeoDataFrame): Hexagon grid boundaries
+        zones_gdf (GeoDataFrame): Zone boundaries
+        output_dirs (dict): Output directory paths with 'hexagon_plots' key
+        city_name (str): City name for file naming
+        
+    Saves:
+        PNG and SVG plots to hexagon_plots directory
+    """
     # Create the figure and axis
     fig, ax = plt.subplots(figsize=(15, 15))
 
@@ -628,14 +694,13 @@ def plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all, zones_gdf, output_
                 label=None
             )
 
-    # Plot zones in yellow (uniform)
+    # Plot zones with gray background and black boundary
     zones_gdf.plot(
-        ax=ax, 
-        column='zone_id',
-        cmap='PuBuGn',
-        alpha=0.1,
-        edgecolor='black',
+        ax=ax,
+    facecolor='lightgray',  # set background to gray
+        edgecolor='black', # zone boundary to black
         linewidth=0.5,
+        alpha=0.4,
         legend=False,
         label='Zones'
     )
@@ -645,17 +710,17 @@ def plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all, zones_gdf, output_
         ax=ax, 
         color='none', 
         edgecolor='red',
-        alpha=0.7,
-        linewidth=0.6,
+        alpha=0.9,
+        linewidth=0.7,
         label='Hexagons'
     )
 
     # Create custom legend
     legend_elements = [
-        Line2D([0], [0], color='blue', linewidth=0.7, label='Zone 1'),
-        Line2D([0], [0], color='gray', linewidth=0.7, label='Zone 2'),
-        Line2D([0], [0], color='green', linewidth=0.7, label='Zones 1 & 2'),
-        Patch(facecolor='yellow', edgecolor='black', alpha=0.2, label='Zones'),
+        Line2D([0], [0], color='blue', linewidth=0.8, label='Roads in Zone 1'),
+        Line2D([0], [0], color='gray', linewidth=0.8, label='Roads in Zone 2'),
+        Line2D([0], [0], color='green', linewidth=0.8, label='Roads in Zones 1 & 2'),
+        Patch(facecolor='lightgray', edgecolor='black', alpha=0.6, label='Zones'),
         Line2D([0], [0], color='red', linewidth=0.8, label='Hexagons')
     ]
 
@@ -664,24 +729,27 @@ def plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all, zones_gdf, output_
     plt.axis('equal')
     plt.tight_layout()
     
-    # Save the plot
-    output_file = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_zones.png'
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"Plot saved to: {output_file}")
-    
+    # Save the plot as PNG and SVG
+    output_file_png = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_zones.png'
+    output_file_svg = output_dirs['hexagon_plots'] / f'{city_name}_network_hexagon_zones.svg'
+    plt.savefig(output_file_png, dpi=300, bbox_inches='tight')
+    plt.savefig(output_file_svg, bbox_inches='tight')
+    print(f"Plot saved to: {output_file_png}\nPlot saved to: {output_file_svg}")
     # Close the plot to free memory
     plt.close()
-    
+
 def convert_and_save_geodataframe(gdf, output_path):
     """
-    Convert a GeoDataFrame to GeoJSON format, handling list columns by converting them to strings.
+    Save GeoDataFrame as GeoJSON with list columns converted to strings.
     
-    Parameters:
-    -----------
-    gdf : GeoDataFrame
-        The GeoDataFrame to convert and save
-    output_path : Path or str
-        Path where to save the GeoJSON file
+    Handles complex data types that cannot be serialized to GeoJSON format.
+    
+    Args:
+        gdf (GeoDataFrame): Input geodataframe with potential list columns
+        output_path (Path or str): Output path for GeoJSON file
+        
+    Saves:
+        GeoJSON file with all list columns converted to string representation
     """
     # Create a copy to avoid modifying the original
     gdf_save = gdf.copy()

@@ -38,13 +38,21 @@ logger = logging.getLogger(__name__)
 
 
 def create_network_from_csv(df) -> nx.DiGraph:
-    '''
-    This function creates a NetworkX directed graph from a CSV file containing link information.
-    input:
-        df: DataFrame containing the link information
-    output:
-        G: NetworkX directed graph
-    '''
+    """
+    Create NetworkX directed graph from network edge data.
+    
+    Converts DataFrame containing link information into a directed graph
+    with edge weights based on link length.
+    
+    Args:
+        df (DataFrame): Network data with columns: from_node, to_node, length, link
+        
+    Returns:
+        nx.DiGraph: Directed graph with length-weighted edges and link IDs
+        
+    Logs:
+        Network statistics including node/edge counts and sample data
+    """
     try:
         print(f"\nNumber of edges in CSV: {len(df)}")
         print(f"Number of unique from_nodes: {df['from_node'].nunique()}")
@@ -81,14 +89,24 @@ def create_network_from_csv(df) -> nx.DiGraph:
         raise
 
 def edge_closeness_centrality(G, centrality_weight='length'):
-    '''
-    This function calculates the edge closeness centrality of the network
-    input:
-        G: NetworkX directed graph
-        centrality_weight: Weight of the centrality
-    output:
-        edge_closeness: Dictionary containing the edge closeness centrality
-    '''
+    """
+    Calculate edge closeness centrality for all edges in a directed graph.
+    
+    Computes centrality as the inverse of average shortest path distance
+    from each edge's source node to all other reachable nodes in the same
+    strongly connected component.
+    
+    Args:
+        G (nx.DiGraph): NetworkX directed graph with edge weights
+        centrality_weight (str, optional): Edge attribute for path weights. Defaults to 'length'
+        
+    Returns:
+        dict: Edge tuple (u,v) to centrality value mapping. 
+              Isolated nodes get centrality of 0.0000000
+              
+    Prints:
+        Progress updates and centrality statistics summary
+    """
     edge_closeness = {}
     
     print("\n=== Edge Closeness Centrality Calculation ===")
@@ -173,14 +191,25 @@ def edge_closeness_centrality(G, centrality_weight='length'):
 
 
 def plot_centrality_measures(gdf_edges_with_hex, centrality_df, output_dirs, city_name):
-    ''' 
-    This function plots and saves the betweenness and closeness centrality distributions
-    input:
-        gdf_edges_with_hex: GeoDataFrame containing the network edges
-        centrality_df: DataFrame containing the centrality measures
-        output_dirs: Dictionary containing the output directories
-        city_name: Name of the city being processed
-    '''
+    """
+    Create and save centrality distribution plots.
+    
+    Generates histograms for betweenness and closeness centrality distributions,
+    saving both combined and separate high-resolution plots.
+    
+    Args:
+        gdf_edges_with_hex (GeoDataFrame): Network edges (unused but kept for compatibility)
+        centrality_df (DataFrame): Centrality measures with betweenness/closeness columns
+        output_dirs (dict): Output directory paths with 'centrality_plots' key
+        city_name (str): City name for file naming
+        
+    Saves:
+        - Combined centrality distributions plot
+        - Separate betweenness and closeness distribution plots
+        
+    Prints:
+        Centrality statistics and saved file paths
+    """
 
     # Get the centrality plots directory from output_dirs
     centrality_plots_dir = output_dirs['centrality_plots']
@@ -249,13 +278,30 @@ def plot_centrality_measures(gdf_edges_with_hex, centrality_df, output_dirs, cit
     print(f"Saved closeness distribution plot to: {closeness_path}")
 
 def analyze_centrality_measures(gdf_edges_with_hex, output_dirs, city_only=True):
-    '''
-    This function analyzes the centrality measures and saves the results to the appropriate directories
-    input:
-        gdf_edges_with_hex: GeoDataFrame containing the network edges
-        output_dirs: Dictionary containing the output directories
-        city_only: Boolean to filter only city edges
-    '''
+    """
+    Compute and analyze betweenness and closeness centrality for network edges.
+    
+    Creates NetworkX graph from edge data, calculates centrality measures,
+    and updates the original GeoDataFrame with centrality values.
+    
+    Args:
+        gdf_edges_with_hex (GeoDataFrame): Network edges with spatial data
+        output_dirs (dict): Output directory paths with 'centrality_csv' key
+        city_only (bool, optional): Filter to city edges only (is_in_stadt=1). Defaults to True
+        
+    Returns:
+        tuple: (centrality_df, updated_gdf, network_graph)
+               - centrality_df: DataFrame with edge centrality measures
+               - updated_gdf: Original GeoDataFrame with added centrality columns
+               - network_graph: NetworkX graph used for analysis
+               
+    Saves:
+        CSV file with centrality measures for analyzed edges
+        
+    Prints:
+        Processing status and centrality statistics summary
+    """
+
     try:
         # Filter edges if city_only is True
         if city_only:
@@ -328,14 +374,24 @@ def analyze_centrality_measures(gdf_edges_with_hex, output_dirs, city_only=True)
         raise
     
 def verify_components(G):
-    '''
-    This function verifies the strongly connected components in the graph
-    input:
-        G: NetworkX directed graph
-    output:
-        size_counts: Dictionary containing the size counts of the components
-        largest_component: List containing the largest component
-    '''
+    """
+    Analyze and verify strongly connected components in a directed graph.
+    
+    Performs comprehensive analysis of graph connectivity including component
+    size distribution, node coverage verification, and largest component analysis.
+    
+    Args:
+        G (nx.DiGraph): NetworkX directed graph to analyze
+        
+    Returns:
+        tuple: (size_counts, largest_component)
+               - size_counts: Dict mapping component sizes to occurrence counts
+               - largest_component: Set of nodes in the largest connected component
+               
+    Prints:
+        Detailed component statistics, size distribution table, and verification results
+        including checks for duplicate nodes and connectivity validation
+    """
     # Get strongly connected components
     scc = list(nx.strongly_connected_components(G))
     

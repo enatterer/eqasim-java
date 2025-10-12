@@ -1,15 +1,32 @@
-'''
-This file contains the functions for creating the subgraphs for a given city.
-Steps:
-1. Create the hexagon grid for the city
-2. Analyze the centrality of the edges (betweenness and closeness)
-3. Create the subgraphs for each road type (primary, secondary, tertiary, residential)
+"""
+Subgraph Creation Pipeline for MATSim Network Analysis
+
+This module generates subgraphs from transportation networks for feeding into MATSim simulations.
+It creates spatially-aware network scenarios by reducing capacity on specific road segments 
+based on centrality measures and hexagonal spatial partitioning.
+
+Process Overview:
+    1. Create hexagonal grid overlay for the city
+    2. Calculate edge centrality measures (betweenness and closeness)
+    3. Generate subgraphs for primary roads meeting centrality criteria
+    4. Create MATSim network files with modified link capacities
+    5. Save scenario data (hexagon IDs, edge geometries, network files)
+
+Configuration:
+    Modify the Control Center variables below:
+    - capacity_tuning_factor: Capacity reduction factor (0.0-1.0)
+    - betweenness_centrality_cutoff: Percentile cutoff for betweenness (0.0-1.0)
+    - closeness_centrality_cutoff: Percentile cutoff for closeness (0.0-1.0)
 
 Usage:
-    python subgraph_creation.py <city_name>
-    Example: python subgraph_creation.py augsburg
+    # Generate commands for all cities:
+    python3 bavaria/src/main/python/generating_subgraph_commands/generating_commands.py
+    
+    # Run for specific city:
+    python3 subgraph_creation.py wuerzburg --seed_number 3 --hexagon_sizes 500 1000 2000 
+            --mean_factors 4 --std_factors 8 --subgraph_counts 2946 3000 31
 
-Folder structure for input data:
+Input Data Structure:
 data/
 ├── city_boundaries/
 │   └── <city_name>/
@@ -18,7 +35,7 @@ data/
 ├── simulation_input/
 │   └── simulations_per_city/
 │       └── <city_name>/
-│           ├── <city_name>_network.xml.gz
+│           ├── <city_name>_network.xml.gz (this is the input file from cutsimulations java class that gives the initial network file for each city and its landkreis region from the entire bavarian network)
 │
 ├── simulation_output/
 │   └── basecases/
@@ -26,25 +43,41 @@ data/
 │           └── <city_name>_seed_1/
 │               └── output_links.csv.gz
 
-Folder structure for output data:
+Output Data Structure:
 data/
 └── subgraph/
     ├── hexagon/
     │   └── <city_name>/
-    │       ├── plots/
-    │       └── data/
+    │       └── <city_name>_seed_<number>_hex<size>_mean<mean>_std<std>/
+    │           ├── plots/ # Visualization plots
+    │           └── data/  # Hexagon grid and edge data
     ├── centrality/
     │   └── <city_name>/
-    │       ├── csv/
-    │       └── plots/
+    │       └── <city_name>_seed_<number>_hex<size>_mean<mean>_std<std>/
+    │           ├── csv/
+    │           └── plots/
     └── network_files/
         └── <city_name>/
-            ├── subgraphs/
-            │   └── <city_name>_seed_<number>/
-            │       └── networks/
-            │           └── networks_<number>/
-            └── validation/
-'''
+            └── <city_name>_seed_<number>_hex<size>_mean<mean>_std<std>/
+                ├── networks/
+                └── validation/
+
+Generated Files:
+bavaria/data/subgraph/network_files/<city_name>/
+This folder contains basically all the generated subgraphs for a specific city (in the networks/ subfolder).
+    -   xyz_edges_of_roadtype.geojson: This file contains all edges of a specific road type (e.g., primary) that are within the hexagons of the scenario, regardless of whether their capacity was reduced or not.
+    -   xyz_reduced_capacity_edges.geojson: This file contains only the edges in the scenario hexagons whose capacity was actually reduced for the scenario.
+    -   xyz_hexagons.json: This file contains the list of hexagon IDs that define the scenario.
+    -   xyz.xml.gz: This is the actual MATSim network file for the scenario, with modified capacities.
+
+bavaria/data/subgraph/hexagon/<city_name>/
+This folder contains the hexagon grids for each city and all the edges that fall within the hexagons and related plots for a specific city.(in the data/ and plots/ subfolders).
+
+Notes:
+    - Uses EPSG:25832 coordinate system (adjust for other regions)
+    - Currently optimized for primary roads only
+    - Supports parallel processing for scenario generation
+"""
 
 # Add the current directory to Python path
 import sys
@@ -85,27 +118,8 @@ from datetime import datetime
 
 # Local imports
 import network_io as nio
-from hexagon_creation_and_plot import (
-    matsim_network_input_to_gdf,
-    clean_duplicates_based_on_modes,
-    create_nodes_dict,
-    multipolygon_to_polygon,
-    modify_geodataframe,
-    merge_edges_and_zones,
-    generate_hexagon_grid,
-    merge_edges_and_hexagon_grid,
-    consolidate_road_types,
-    check_hexagon_statistics,
-    plot_grid_and_edges,
-    convert_and_save_geodataframe,
-    plot_hexagon_grid_with_ids
-)
-from betweenness_and_closeness import (
-    edge_closeness_centrality,
-    analyze_centrality_measures,
-    create_network_from_csv,
-    verify_components
-)
+from hexagon_creation_and_plot import *
+from betweenness_and_closeness import *
 
 ### Settings for filepath, working directory and output path #########################################################
 base_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -132,16 +146,21 @@ def parse_arguments():
 
 def setup_output_directories(base_dir, city_name, seed_number, hexagon_size, mean_factor, std_factor):
     """
-    Create structured output directories for different purposes.
-    Each city has its own structure, with subgraphs having additional seed hierarchy.
+    Create structured output directories for subgraph generation.
     
-    Parameters:
-        base_dir: Path object for the base directory
-        city_name: Name of the city (e.g., 'Augsburg')
-        seed_number: Seed number (e.g., 1)
-        hexagon_size: Size of the hexagon
-        mean_factor: Mean factor for the distribution
-        std_factor: Standard deviation factor for the distribution
+    Args:
+        base_dir (Path): Base directory path
+        city_name (str): Name of the city (e.g., 'augsburg')
+        seed_number (int): Random seed number
+        hexagon_size (int): Size of hexagon grid cells
+        mean_factor (int): Distribution mean factor
+        std_factor (int): Distribution standard deviation factor
+    
+    Returns:
+        dict: Dictionary containing paths for all output directories:
+              - hexagon_plots, hexagon_data: Hexagon grid files
+              - centrality_csv, centrality_plots: Centrality analysis files  
+              - network_files, networks, validation: Network scenario files
     """
     city_seed_dir = f"{city_name}_seed_{seed_number}_hex{hexagon_size}_mean{mean_factor}_std{std_factor}"
     output_base_path = base_dir / "data" / "subgraph"
@@ -176,33 +195,33 @@ def setup_output_directories(base_dir, city_name, seed_number, hexagon_size, mea
         'validation': output_paths['validation']
     }
 
-def generate_road_type_specific_subsets(gdf_edges_with_hex, city_name, seed_number, target_size, hexagon_size,
-                                        distribution_mean_factor, 
-                                        distribution_std_factor,
-                                        betweenness_centrality_cutoff=betweenness_centrality_cutoff,
-                                        closeness_centrality_cutoff=closeness_centrality_cutoff):
+def generate_road_type_specific_subsets(gdf_edges_with_hex, city_name, seed_number, target_size, 
+                                       hexagon_size, distribution_mean_factor, distribution_std_factor,
+                                       betweenness_centrality_cutoff=betweenness_centrality_cutoff,
+                                       closeness_centrality_cutoff=closeness_centrality_cutoff):
     """
-    Generate unique subsets of hexagon IDs for each road type, where the total number of subsets
-    is target_size, distributed evenly across road types.
+    Generate unique hexagon ID subsets for each road type based on centrality criteria.
     
-    Parameters:
-    -----------
-    gdf_edges_with_hex : GeoDataFrame
-        GeoDataFrame containing road network data with hexagon assignments and highway types
-    city_name : str
-        Name of the city (e.g., 'augsburg')
-    seed_number : int
-        Seed number from city_seed_X directory structure
-    target_size : int
-        Total number of subsets to generate (will be divided among road types)
-    distribution_mean_factor : int, optional
-        Factor to calculate mean subset size (default: 5)
-    distribution_std_factor : int, optional
-        Factor to calculate standard deviation of subset size (default: 10)
+    Filters edges by centrality thresholds and creates random subsets of hexagons 
+    containing the target road types for scenario generation.
+    
+    Args:
+        gdf_edges_with_hex (GeoDataFrame): Network edges with hexagon assignments
+        city_name (str): Name of the city
+        seed_number (int): Random seed for reproducibility
+        target_size (int): Total number of subsets (subgraphs) to generate
+        hexagon_size (int): Size of hexagon grid cells
+        distribution_mean_factor (int): Factor for subset size mean calculation
+        distribution_std_factor (int): Factor for subset size std deviation
+        betweenness_centrality_cutoff (float, optional): Percentile cutoff for betweenness
+        closeness_centrality_cutoff (float, optional): Percentile cutoff for closeness
     
     Returns:
-    --------
-    dict : Dictionary mapping each road type to its list of hexagon ID subsets
+        tuple: (road_type_subsets, target_mean, overall_mean, subset_count)
+               - road_type_subsets: Dict mapping road types to hexagon ID lists, for our use case only for primary roads, example: {'primary': [(hex1, hex2, ...), (hex3, hex4, ...), ...]}
+               - target_mean: Target mean subset size
+               - overall_mean: Actual mean subset size
+               - subset_count: Number of subsets generated
     """
     # Set the seed for reproducibility using the seed_number from directory structure
     np.random.seed(seed_number)
@@ -309,16 +328,16 @@ def generate_road_type_specific_subsets(gdf_edges_with_hex, city_name, seed_numb
 
 def generate_scenario_labels(road_type_subsets, city_name):
     """
-    Generate meaningful labels for scenario combinations based on active road types.
+    Generate meaningful labels for scenario combinations.
     
-    Parameters:
-    -----------
-    road_type_subsets : dict
-        Dictionary mapping each road type to its list of hexagon ID subsets
+    Args:
+        road_type_subsets (dict): Dictionary mapping road types to hexagon subsets, example: {'primary': [(hex1, hex2, ...), (hex3, hex4, ...), ...]}
+        city_name (str): Name of the city
     
     Returns:
-    --------
-    dict : Dictionary mapping scenario indices to their labels
+        dict: Dictionary mapping scenario indices (road_type, subset_index) to 
+              descriptive labels in format: "{city}_{road_type}_n{hex_count}_s{scenario_num}"
+    Example scenario
     """
     # Get all road types
     road_types = list(road_type_subsets.keys())
@@ -341,8 +360,35 @@ def generate_scenario_labels(road_type_subsets, city_name):
     return scenario_labels
 
 def process_one_scenario(args):
-    (
-        road_type, subset, i, gdf_filtered, scenario_labels, city_name, seed_number,
+    (road_type, subset, i, gdf_filtered, scenario_labels, city_name, seed_number,
+        networks_base, matsim_network_file_path, capacity_tuning_factor, label,
+        betweenness_cutoff, closeness_cutoff
+    ) = args
+    """
+    Process a single scenario by creating network files with modified capacities.
+    
+    This function is designed for parallel execution and handles:
+    - Filtering edges by road type, centrality criteria, and transport modes
+    - Selecting edges in scenario hexagons that meet all criteria
+    - Saving hexagon IDs and edge geometries  
+    - Modifying link capacities in MATSim network XML
+    
+    Edge filtering criteria:
+    - Road type must match scenario road type
+    - Betweenness centrality below specified cutoff (lowest X%)
+    - Closeness centrality above specified cutoff (highest X%)
+    - Must allow car or car_passenger modes
+    
+    Args:
+        args (tuple): Contains all parameters needed for scenario processing:
+                     (road_type, subset, scenario_index, filtered_gdf, scenario_labels,
+                      city_name, seed_number, networks_base, matsim_network_file_path,
+                      capacity_tuning_factor, label, betweenness_cutoff, closeness_cutoff)
+    
+    Returns:
+        str: Path to the created network file (for validation and checking)
+    """
+    (road_type, subset, i, gdf_filtered, scenario_labels, city_name, seed_number,
         networks_base, matsim_network_file_path, capacity_tuning_factor, label,
         betweenness_cutoff, closeness_cutoff
     ) = args
@@ -429,14 +475,35 @@ def process_one_scenario(args):
         f.write(xml_str)
     return str(network_path)
 
-def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_type_subsets, scenario_labels, hexagon_size,
-                              city_name, seed_number, output_dirs, nodes_dict, network_attrs, link_attrs,
-                              capacity_tuning_factor=capacity_tuning_factor,
-                              betweenness_centrality_cutoff=betweenness_centrality_cutoff,
-                              closeness_centrality_cutoff=closeness_centrality_cutoff):
+def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_type_subsets, 
+                            scenario_labels, hexagon_size, city_name, seed_number, output_dirs, 
+                            nodes_dict, network_attrs, link_attrs, capacity_tuning_factor=capacity_tuning_factor,
+                            betweenness_centrality_cutoff=betweenness_centrality_cutoff,
+                            closeness_centrality_cutoff=closeness_centrality_cutoff):
     """
-    Create network.xml.gz files for each scenario by modifying only the capacity of specific links
-    in the existing MATSim network file. Also saves corresponding hexagon IDs for each scenario.
+    Create MATSim network files for all scenarios with modified link capacities.
+    
+    Uses parallel processing to generate network.xml.gz files where specific links
+    have reduced capacity based on road type and hexagon selection criteria.
+    
+    Args:
+        matsim_network_file_path (Path): Path to original MATSim network file
+        gdf_edges_with_hex (GeoDataFrame): Network edges with hexagon assignments
+        road_type_subsets (dict): Road type to hexagon subset mappings
+        scenario_labels (dict): Scenario index to label mappings
+        hexagon_size (int): Size of hexagon grid cells
+        city_name (str): Name of the city
+        seed_number (int): Random seed number
+        output_dirs (dict): Output directory paths
+        nodes_dict (dict): Node ID to coordinate mappings
+        network_attrs (dict): Network-level attributes
+        link_attrs (dict): Link-level attributes
+        capacity_tuning_factor (float, optional): Factor for capacity reduction
+        betweenness_centrality_cutoff (float, optional): Betweenness percentile cutoff
+        closeness_centrality_cutoff (float, optional): Closeness percentile cutoff
+    
+    Returns:
+        str: Path to the first created scenario network file (for validation and checking)
     """
     networks_base = output_dirs['networks']
     print(f"\nCreating scenario networks for {city_name} (seed {seed_number})")
@@ -467,27 +534,24 @@ def create_scenario_networks(matsim_network_file_path, gdf_edges_with_hex, road_
     return first_scenario_path
 
 def plot_check_for_created_networks(check_output_subgraph_path, zones_gdf, hexagon_grid_all, 
-                                    gdf_edges_with_hex, scenario_labels, road_type_subsets, output_dirs=None):
+                                   gdf_edges_with_hex, scenario_labels, road_type_subsets, output_dirs=None):
     """
-    Plot and verify a single created network file by visualizing its scenario edges, road types, and hexagons.
-    This is a validation function to check if the network creation process worked correctly.
+    Visualize and validate a created network scenario.
     
-    Parameters:
-    -----------
-    check_output_subgraph_path : Path or str
-        Path to the specific network file to check
-    zones_gdf : GeoDataFrame
-        GeoDataFrame containing zone boundaries
-    hexagon_grid_all : GeoDataFrame
-        GeoDataFrame containing all hexagons
-    gdf_edges_with_hex : GeoDataFrame
-        Original network data with hexagon assignments
-    scenario_labels : dict
-        Dictionary mapping scenario indices to their labels
-    road_type_subsets : dict
-        Dictionary mapping road types to their hexagon subsets
-    output_dirs : dict, optional
-        Dictionary containing output directory paths. If provided, will save the plot.
+    Creates a plot showing the scenario's hexagons, affected edges, and road types
+    to verify that network creation worked correctly.
+    
+    Args:
+        check_output_subgraph_path (Path): Path to network file to validate
+        zones_gdf (GeoDataFrame): Zone boundaries
+        hexagon_grid_all (GeoDataFrame): All hexagons in the grid
+        gdf_edges_with_hex (GeoDataFrame): Original network with hexagon assignments
+        scenario_labels (dict): Scenario index to label mappings
+        road_type_subsets (dict): Road type to hexagon subset mappings
+        output_dirs (dict, optional): Output directories for saving plots
+    
+    Returns:
+        GeoDataFrame: The loaded MATSim network for further analysis
     """
     # Load the network file
     matsim_network, nodes_subgraph, edges_subgraph,network_attrs, link_attrs = matsim_network_input_to_gdf(check_output_subgraph_path)
@@ -587,12 +651,26 @@ def plot_check_for_created_networks(check_output_subgraph_path, zones_gdf, hexag
     return matsim_network
 
 def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_hex, road_type_subsets, 
-                                     scenario_labels, seed_number=None, output_dirs=None):
+                                    scenario_labels, seed_number=None, output_dirs=None):
     """
-    Cross check the created network files to verify:
-    1. Which edges are in the selected hexagons
-    2. Which edges match the road type
-    3. How capacities have been modified
+    Cross-validate created network files by analyzing edge selection and capacity changes.
+    
+    Verifies which edges are in selected hexagons, match road types, and have
+    modified capacities as expected.
+    
+    Args:
+        check_output_subgraph_path (Path): Path to network file to validate
+        gdf_edges_with_hex (GeoDataFrame): Original network with hexagon assignments
+        road_type_subsets (dict): Road type to hexagon subset mappings
+        scenario_labels (dict): Scenario index to label mappings
+        seed_number (int, optional): Random seed number for reporting
+        output_dirs (dict, optional): Output directories for saving validation files
+    
+    Returns:
+        tuple: (edges_with_matching_road_type, all_edges_in_hexagons, capacity_comparison_df)
+               - edges_with_matching_road_type: Edges matching scenario road type
+               - all_edges_in_hexagons: All edges in scenario hexagons
+               - capacity_comparison_df: DataFrame comparing original vs modified capacities
     """
     # Load the network file
     matsim_network, nodes_subgraph, edges_subgraph,network_attrs, link_attrs = matsim_network_input_to_gdf(check_output_subgraph_path)
@@ -672,6 +750,17 @@ def cross_check_for_created_networks(check_output_subgraph_path, gdf_edges_with_
     return edges_in_selected_hexagon_and_road_type, edges_in_selected_hexagon, comparison_df
 
 def weighted_mean(target_mean_list, actual_mean_list, subgraph_count_list):
+    """
+    Calculate weighted means of target and actual subset sizes across all hexagon sizes.
+    
+    Args:
+        target_mean_list (list): Target mean sizes for each hexagon size
+        actual_mean_list (list): Actual mean sizes for each hexagon size  
+        subgraph_count_list (list): Number of subgraphs for each hexagon size
+    
+    Prints:
+        Target and actual weighted means across all scenarios
+    """
     total_subgraph_count = sum(subgraph_count_list)
     target_weighted_mean = sum(np.array(target_mean_list) * np.array(subgraph_count_list)) / total_subgraph_count
     actual_weighted_mean = sum(np.array(actual_mean_list) * np.array(subgraph_count_list)) / total_subgraph_count
@@ -679,6 +768,21 @@ def weighted_mean(target_mean_list, actual_mean_list, subgraph_count_list):
     print(f"Actual weighted mean of the length of the subgraphs: {actual_weighted_mean}")
 
 def main():
+    """
+    Main execution function for subgraph creation pipeline.
+    
+    Orchestrates the complete workflow:
+    1. Parse command line arguments
+    2. Load and process network data
+    3. Create hexagon grids
+    4. Calculate centrality measures
+    5. Generate road type specific subsets
+    6. Create scenario networks with modified capacities
+    7. Validate created networks
+    8. Calculate weighted statistics across all scenarios
+    
+    Processes multiple hexagon sizes and subgraph counts as specified in arguments.
+    """
     # Parse command line arguments
     args = parse_arguments()
     city_name = args.city.lower()  # Convert to lowercase for consistency
@@ -743,9 +847,9 @@ def main():
         #plot the grid and the edges
         plot_grid_and_edges(gdf_edges_with_hex, hexagon_grid_all,zones_gdf,output_dirs,city_name)
         # Save the GeoDataFrame using the new function
-        convert_and_save_geodataframe(gdf_edges_with_hex, output_dirs['hexagon_data'] / f'{city_name}_hexagon_edges.geojson')
+        #convert_and_save_geodataframe(gdf_edges_with_hex, output_dirs['hexagon_data'] / f'{city_name}_hexagon_edges.geojson')
         
-        #calculate the betweenness and closeness centrality####################################################
+       #calculate the betweenness and closeness centrality####################################################
         
         centrality_df, gdf_edges_with_hex, G = analyze_centrality_measures(gdf_edges_with_hex, output_dirs, city_only=True)
         size_counts, largest_component= verify_components(G) 

@@ -11,6 +11,15 @@ import shapely.wkt as wkt
 
 # Function to parse XML and convert to DataFrame
 def parse_network_xml_gz(file_path):
+    """
+    Parse MATSim network XML to extract node coordinates.
+    
+    Args:
+        file_path (str): Path to compressed MATSim network XML file
+        
+    Returns:
+        DataFrame: Node data with columns: id, x, y
+    """
     with gzip.open(file_path, 'rb') as f:
         tree = ET.parse(f)
         root = tree.getroot()
@@ -29,6 +38,15 @@ def parse_network_xml_gz(file_path):
     
 # Function to parse nodes and create a dictionary for quick lookup
 def parse_nodes(file_path):
+    """
+    Extract node coordinates from MATSim network XML file.
+    
+    Args:
+        file_path (str): Path to compressed MATSim network XML file
+        
+    Returns:
+        dict: Node ID to (x, y) coordinate mapping for quick lookup
+    """
     with gzip.open(file_path, 'rb') as f:
         tree = ET.parse(f)
         root = tree.getroot()
@@ -44,6 +62,16 @@ def parse_nodes(file_path):
 
 # Function to parse edges (links) and add geometry using the nodes' coordinates
 def parse_edges(file_path, nodes):
+    """
+    Extract network links and create LineString geometries from node coordinates.
+    
+    Args:
+        file_path (str): Path to compressed MATSim network XML file
+        nodes (dict): Node ID to coordinate mapping from parse_nodes()
+        
+    Returns:
+        DataFrame: Link data with all attributes plus LineString geometry column
+    """
     with gzip.open(file_path, 'rb') as f:
         tree = ET.parse(f)
         root = tree.getroot()
@@ -63,6 +91,22 @@ def parse_edges(file_path, nodes):
     
 # Function to convert a DataFrame back to XML format
 def dataframe_to_xml(df, nodes_dict):
+    """
+    Convert network DataFrame back to MATSim XML format.
+    
+    Creates complete MATSim network XML with nodes and links sections,
+    including proper coordinate reference system attributes.
+    
+    Args:
+        df (DataFrame): Link data with MATSim network attributes
+        nodes_dict (dict): Node ID to coordinate mapping
+        
+    Returns:
+        ET.ElementTree: Complete MATSim network XML tree ready for writing
+        
+    Note:
+        Handles "inf" to "Infinity" conversion for MATSim compatibility
+    """
     root = ET.Element("network")
     
     # Add attributes
@@ -101,6 +145,18 @@ def dataframe_to_xml(df, nodes_dict):
 
 # Function to write XML to a compressed .gz file
 def write_xml_to_gz(xml_tree, file_path):
+    """
+    Write MATSim network XML to compressed file with proper headers.
+    
+    Adds XML declaration and DTD reference required by MATSim format.
+    
+    Args:
+        xml_tree (ET.ElementTree): Complete MATSim network XML tree
+        file_path (str): Output path for compressed XML file
+        
+    Saves:
+        Compressed XML file with MATSim-compatible formatting and DTD reference
+    """
     xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE network SYSTEM "http://www.matsim.org/files/dtd/network_v2.dtd">\n'
     xml_str = xml_declaration + ET.tostring(xml_tree.getroot(), encoding='utf-8', method='xml')
     xml_str = xml_str.replace(b"inf", b"'Infinity")  # Replace "inf" with "'Infinity"
@@ -109,6 +165,18 @@ def write_xml_to_gz(xml_tree, file_path):
         
 # Function to read and convert CSV.GZ to GeoDataFrame
 def read_output_links(folder):
+    """
+    Read MATSim simulation output links as GeoDataFrame.
+    
+    Loads output_links.csv.gz file and converts WKT geometry strings
+    to proper geometric objects for spatial analysis.
+    
+    Args:
+        folder (str): Directory containing output_links.csv.gz file
+        
+    Returns:
+        GeoDataFrame or None: Network links with geometry column, or None if file not found
+    """
     file_path = os.path.join(folder, 'output_links.csv.gz')
     if os.path.exists(file_path):
         # Read the CSV file with the correct delimiter
@@ -125,6 +193,20 @@ def read_output_links(folder):
     
 # Function to read and convert CSV.GZ to GeoDataFrame
 def read_network_data(folder):
+    """
+    Read network data from CSV file as GeoDataFrame.
+    
+    Identical to read_output_links() - loads CSV with WKT geometry conversion.
+    
+    Args:
+        folder (str): Directory containing output_links.csv.gz file
+        
+    Returns:
+        GeoDataFrame or None: Network data with geometry column, or None if file not found
+        
+    Note:
+        This function duplicates read_output_links() functionality
+    """
     file_path = os.path.join(folder, 'output_links.csv.gz')
     if os.path.exists(file_path):
         # Read the CSV file with the correct delimiter
@@ -141,6 +223,22 @@ def read_network_data(folder):
     
 # Funktion zur Überprüfung, ob eine Teilmenge verbunden ist
 def is_connected(subset, neighbours):
+    """
+    Check if a subset of nodes forms a connected component.
+    
+    Uses depth-first search to verify that all nodes in the subset
+    are reachable from each other through the neighbor relationships.
+    
+    Args:
+        subset (set): Set of node IDs to check for connectivity
+        neighbours (dict): Node ID to list of neighbor node IDs mapping
+        
+    Returns:
+        bool: True if all nodes in subset are connected, False otherwise
+        
+    Note:
+        Empty subsets are considered connected (returns True)
+    """
     if not subset:
         return True
     visited = set()
@@ -155,5 +253,4 @@ def is_connected(subset, neighbours):
 
     dfs(next(iter(subset)))
     return visited == subset
-    
-    
+
