@@ -19,10 +19,10 @@ Configuration:
     - closeness_centrality_cutoff: Percentile cutoff for closeness (0.0-1.0)
 
 Usage:
-    # Generate commands for all cities:
+    # First, generate commands for all cities:
     python3 bavaria/src/main/python/generating_subgraph_commands/generating_commands.py
     
-    # Run for specific city:
+    # Run to create subgraphs for a specific city (explained in more detail in the generating_commands.py script):
     python3 subgraph_creation.py wuerzburg --seed_number 3 --hexagon_sizes 500 1000 2000 
             --mean_factors 4 --std_factors 8 --subgraph_counts 2946 3000 31
 
