@@ -1,3 +1,13 @@
+"""
+Purpose
+
+Helpers to read, parse and write MATSim network XML (compressed .gz) and to load network output CSVs with geometry into GeoDataFrames.
+Builds node/edge tables, constructs LineString geometries for links, converts DataFrame back to MATSim XML, and writes compressed XML with the required MATSim DTD header.
+Provides a small connectivity checker for node subsets.
+
+Detailed explanation of each function given in docstrings for each function below.
+"""
+
 import geopandas as gpd
 import pandas as pd
 import gzip
